@@ -124,8 +124,7 @@ bash rl/convert_to_hf.sh CKPT_DIR=<rl_ckpt>/global_step_200       # merge for se
 
 # 4. Evaluate — see Quickstart step 2b.
 ```
-Everything runs on any machine with the right GPUs — **no cluster/scheduler
-required**. Each stage's README has the exact knobs and hyperparameters.
+Each stage's README has the exact knobs and hyperparameters.
 
 ## Citation
 
