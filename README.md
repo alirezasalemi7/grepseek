@@ -1,7 +1,7 @@
 # GrepSeek: Training Search Agents for Direct Corpus Interaction
 
 [![Paper](https://img.shields.io/badge/Paper-GrepSeek-b31b1b.svg)](https://github.com/alirezasalemi7/grepseek)
-[![Models](https://img.shields.io/badge/🤗%20Models-alireza7-yellow.svg)](https://huggingface.co/alireza7)
+[![Models](https://img.shields.io/badge/🤗%20Models-alireza7-yellow.svg)](https://huggingface.co/collections/alireza7/grepseek)
 [![Dataset](https://img.shields.io/badge/🤗%20Dataset-ColdStart--SFT--10k-yellow.svg)](https://huggingface.co/datasets/alireza7/GrepSeek-ColdStart-SFT-10k)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
@@ -54,6 +54,7 @@ out-of-distribution. GrepSeek wins 4/7 and the best micro-average.
 
 ```
 grepseek/
+├── containers/       # Docker/GHCR and Apptainer usage instructions (no large artifacts tracked)
 ├── sft/              # cold-start SFT data generation + supervised fine-tuning
 ├── rl/               # GRPO training + serving + checkpoint merge  (the `grepseek` package)
 ├── inference/        # the agent harness (generation + eval) + the fast parallel-search engine
@@ -73,6 +74,11 @@ Set up the training/inference environment from the **exact, verified recipe** in
 [`TRAINING_ENV.md`](TRAINING_ENV.md) (conda CUDA 12.8 toolkit → torch 2.10 cu128 →
 flash-attn → vLLM 0.17 → verl via `PYTHONPATH`). The lightweight data-generation
 stage has its own smaller env — see [sft/data_generation/README.md](sft/data_generation/README.md).
+
+Alternatively, use the prebuilt Docker/GHCR or Apptainer environments described
+in [`containers/README.md`](containers/README.md). The container images include
+the runtime environments only; mount this repository, data, cache, and
+checkpoints at runtime.
 
 Download the corpus once (≈14 GB; verified byte-identical to the paper's):
 ```bash
