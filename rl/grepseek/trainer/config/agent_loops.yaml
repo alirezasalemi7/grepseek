@@ -1,0 +1,2 @@
+- name: grepseek_agent
+  _target_: grepseek.trainer.verl_integration.agent_loop.GrepSeekAgentLoop

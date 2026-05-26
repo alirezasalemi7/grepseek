@@ -1,0 +1,46 @@
+tools:
+  - class_name: "grepseek.trainer.verl_integration.search_corpus_tool.SearchCorpusTool"
+    tool_schema:
+      type: function
+      function:
+        # Tool name is `shell` — it MUST match the name the SFT'd model was trained
+        # to emit. The cold-start data-gen pipeline emits
+        # <tool_call>{"name": "shell", "arguments": {"command": "..."}}</tool_call>;
+        # registering a different name makes every rollout terminate as
+        # invalid_tool_request.
+        name: shell
+        description: >
+          Run a single-pipeline shell command against the local Wikipedia corpus
+          (corpus.jsonl in the cwd; it is rewritten to wiki_corpus.jsonl on disk
+          before execution). Allowed commands: rg, grep, find, sed, awk, head,
+          tail, cat, ls, wc, sort, cut, uniq, tr. Pipes (|) are allowed.
+          Redirection, command chaining, and command substitution are not.
+        parameters:
+          type: object
+          properties:
+            command:
+              type: string
+              description: "A single shell pipeline to execute against corpus.jsonl."
+          required:
+            - command
+          additionalProperties: false
+    config:
+      # Required by initialize_tools_from_config() to select ToolType.NATIVE
+      type: native
+
+      # Directory containing wiki_corpus.jsonl. The agent types corpus.jsonl; the
+      # tool rewrites that to wiki_corpus.jsonl before exec, and runs with this as
+      # the cwd (mirrors the cold-start data-gen pipeline's CORPUS_DIR).
+      #
+      # NOTE: the VERL_TOOL_CORPUS_ROOT env var (set by run_rl.sh) takes precedence
+      # over this value, so you normally don't edit it here. Set one or the other.
+      corpus_root: ${oc.env:VERL_TOOL_CORPUS_ROOT,/path/to/wiki_18_corpus}
+
+      # Match the SFT data-gen pipeline's tool_timeout (rg over the 14GB / 21M-line
+      # corpus can take >15s for some multi-grep pipelines).
+      timeout_seconds: 180.0
+
+      # Token-based stdout truncation, mirror of the SFT pipeline's
+      # --tool_max_tokens 2048. The trained model's tokenizer is injected by
+      # GrepSeekAgentLoop.__init__ — no model name to configure here.
+      max_output_tokens: 2048

@@ -1,0 +1,7 @@
+{
+  "reload_interval_s": 3600,
+  "servers": [
+    {"host": "node1", "port": 8000, "model": "teacher", "max_in_flight": 8},
+    {"host": "node2", "port": 8000, "model": "teacher", "max_in_flight": 8}
+  ]
+}

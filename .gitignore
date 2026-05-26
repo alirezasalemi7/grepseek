@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Training / experiment run artifacts (Hydra, W&B, checkpoints, logs).
+# Anchored to repo root OR matched anywhere as appropriate — but NOT so broad
+# they swallow source dirs (e.g. the `rl/grepseek/data/` package).
+/outputs/
+**/outputs/
+multirun/
+wandb/
+/checkpoints/
+*.log
+
+# Caches
+.cache/
+.venv/
+venv/
+
+# Local data (download via the provided scripts; do not commit). Anchored to the
+# repo root so it does NOT ignore the `rl/grepseek/data/` source package.
+/data/
+cold_start_sft/output/
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/

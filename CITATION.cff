@@ -1,0 +1,55 @@
+cff-version: 1.2.0
+message: "If you use GrepSeek (code, data, or models), please cite the paper."
+title: "GrepSeek: Training Search Agents for Direct Corpus Interaction"
+abstract: >-
+  GrepSeek trains compact open-weight LLMs to perform Direct Corpus Interaction
+  (DCI) — answering knowledge-intensive questions by searching a raw text corpus
+  with Unix shell commands instead of a pre-computed dense/sparse index — via a
+  two-stage pipeline (cold-start SFT from an Answer-Aware Tutor / Answer-Blind
+  Planner, then GRPO) plus a semantics-preserving sharded-parallel execution
+  engine.
+type: software
+url: "https://github.com/alirezasalemi7/grepseek"
+repository-code: "https://github.com/alirezasalemi7/grepseek"
+license: Apache-2.0
+authors:
+  - family-names: Salemi
+    given-names: Alireza
+    affiliation: University of Massachusetts Amherst
+  - family-names: Zeng
+    given-names: Chang
+    affiliation: University of Massachusetts Amherst
+  - family-names: Nijasure
+    given-names: Atharva
+    affiliation: University of Massachusetts Amherst
+  - family-names: Chung
+    given-names: Jui-Hui
+    affiliation: Princeton University
+  - family-names: Rahimi
+    given-names: Negin
+    affiliation: University of Massachusetts Amherst
+  - family-names: Diaz
+    given-names: Fernando
+    affiliation: Carnegie Mellon University
+  - family-names: Zamani
+    given-names: Hamed
+    affiliation: University of Massachusetts Amherst
+preferred-citation:
+  type: article
+  title: "GrepSeek: Training Search Agents for Direct Corpus Interaction"
+  year: 2026
+  authors:
+    - family-names: Salemi
+      given-names: Alireza
+    - family-names: Zeng
+      given-names: Chang
+    - family-names: Nijasure
+      given-names: Atharva
+    - family-names: Chung
+      given-names: Jui-Hui
+    - family-names: Rahimi
+      given-names: Negin
+    - family-names: Diaz
+      given-names: Fernando
+    - family-names: Zamani
+      given-names: Hamed
