@@ -24,7 +24,7 @@ Everything is plain Python (`python -m inference.run`); nothing SLURM-specific.
    `--base_url` (e.g. `http://HOST:PORT/v1`) and served model name.
 3. **Corpus** — `wiki_corpus.jsonl`; point `--corpus_dir` (or `$GREPSEEK_CORPUS_ROOT`)
    at the directory that holds it. Download with
-   [`../cold_start_sft/download_corpus.py`](../cold_start_sft/download_corpus.py).
+   [`../sft/data_generation/download_corpus.py`](../sft/data_generation/download_corpus.py).
 
 ## Generation (eval optional)
 

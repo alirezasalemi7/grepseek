@@ -14,8 +14,8 @@ transformers pinned to a git commit with Qwen3.5 support.
 `conda env export` of the env (conda + pip packages, exact build strings):
 
 ```bash
-conda env create -f environment-train.yml      # creates env "qwen3_5_search"
-conda activate qwen3_5_search
+conda env create -f environment-train.yml      # creates env "grepseek"
+conda activate grepseek
 ```
 
 > Build strings target Linux/x86-64 + CUDA 12.8; on a different platform use
@@ -42,7 +42,7 @@ smoke). **Order matters and the steps are not interchangeable:**
   the `vllm`/`peft` pins.
 
 ```bash
-conda create -n grepseek-train python=3.12 && conda activate grepseek-train
+conda create -n grepseek python=3.12 && conda activate grepseek
 
 # 1) CUDA 12.8 toolkit + a compatible host compiler (so flash-attn can compile)
 conda install -c conda-forge cuda-toolkit=12.8 gxx_linux-64=12 gcc_linux-64=12
@@ -91,13 +91,13 @@ in a flat requirements file).
 
 ## Relation to our conda env
 
-Both files are taken directly from the `qwen3_5_search` conda env used for the
+Both files are taken directly from the `grepseek` conda env used for the
 paper. The pip freeze omits exactly **3** `@ file://` local-build entries that
 can't install on another machine:
 
 | dropped | what to do |
 |---|---|
-| `causal_conv1d` | needed (Qwen3.5 linear-attention kernels) → built in step 2 above |
+| `causal-conv1d` | needed (Qwen3.5 linear-attention kernels) → built in step 3 above |
 | `conda-pack`, `nvitop` | tooling only, not required |
 
 verl and the GrepSeek RL integration code are **not** pip-installed in our env

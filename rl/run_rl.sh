@@ -54,7 +54,7 @@ export GREPSEEK_TRAIN_FILES GREPSEEK_VAL_FILES
 export VERL_TOOL_CORPUS_ROOT="${GREPSEEK_CORPUS_ROOT}"
 if [[ ! -f "${VERL_TOOL_CORPUS_ROOT}/wiki_corpus.jsonl" ]]; then
   echo "error: ${VERL_TOOL_CORPUS_ROOT}/wiki_corpus.jsonl not found." >&2
-  echo "       Download it with cold_start_sft/download_corpus.py (see README)." >&2
+  echo "       Download it with sft/data_generation/download_corpus.py (see README)." >&2
   exit 1
 fi
 

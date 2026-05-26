@@ -33,7 +33,7 @@ pip-install. `run_rl.sh` sets the path up for you.
    If `GREPSEEK_MODEL_PATH` is unset, RL starts from the **base** model (ablation,
    not the paper result).
 3. **Corpus** — `wiki_corpus.jsonl` (21M passages). Download with
-   [`../cold_start_sft/download_corpus.py`](../cold_start_sft/download_corpus.py);
+   [`../sft/data_generation/download_corpus.py`](../sft/data_generation/download_corpus.py);
    point `GREPSEEK_CORPUS_ROOT` at the directory that contains it.
 4. **RL data** — build it with one command from NQ + HotpotQA (the paper's data):
    ```bash

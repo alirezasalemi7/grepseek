@@ -1,4 +1,4 @@
-name: qwen3_5_search
+name: grepseek
 channels:
   - defaults
   - conda-forge

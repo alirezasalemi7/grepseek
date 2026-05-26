@@ -375,7 +375,7 @@ def main():
                          "containing wiki_corpus.jsonl")
     if not os.path.isfile(os.path.join(args.corpus_dir, "wiki_corpus.jsonl")):
         raise SystemExit(f"{args.corpus_dir}/wiki_corpus.jsonl not found "
-                         "(download it with cold_start_sft/download_corpus.py)")
+                         "(download it with sft/data_generation/download_corpus.py)")
 
     # Pick the work: generation (--input) XOR benchmark (--datasets).
     if args.input and args.datasets:

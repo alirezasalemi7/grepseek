@@ -164,7 +164,7 @@ the same example stick to one server to maximize prefix-cache hits.
 ## Layout
 
 ```
-cold_start_sft/
+sft/data_generation/
   create_data.py        # entry point
   to_parquet.py         # SFT jsonl -> train/val parquet
   scripts/run_example.sh

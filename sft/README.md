@@ -1,7 +1,7 @@
 # GrepSeek — Supervised fine-tuning (cold start)
 
 Fine-tune the base model on the cold-start trajectories produced by
-[`../cold_start_sft`](../cold_start_sft). This is the SFT stage that initializes
+[`data_generation`](data_generation). This is the SFT stage that initializes
 the policy before RL. Training uses verl's FSDP SFT trainer
 (`verl.trainer.sft_trainer`).
 
@@ -19,9 +19,10 @@ the policy before RL. Training uses verl's FSDP SFT trainer
 3. **Training data** — run the data-gen + parquet steps first:
 
    ```bash
-   cd ../cold_start_sft
+   cd data_generation
    python create_data.py --dataset hotpotqa --n 10000 --out_chatml output/sft.jsonl ...
    python to_parquet.py --in 'output/sft.jsonl' --out_dir output/sft_parquet --include_tools
+   cd ..
    ```
 
 ## Run
@@ -31,7 +32,7 @@ Runs on **any machine with ≥2 GPUs** (no cluster/scheduler required) —
 [`../TRAINING_ENV.md`](../TRAINING_ENV.md)), then:
 
 ```bash
-export TRAIN_PARQUET=../cold_start_sft/output/sft_parquet/train.parquet
+export TRAIN_PARQUET=data_generation/output/sft_parquet/train.parquet
 export MODEL_PATH=Qwen/Qwen3.5-9B     # base model to fine-tune
 export NPROC=4                         # number of GPUs (4×A100-80GB reproduces the paper)
 bash run_sft.sh

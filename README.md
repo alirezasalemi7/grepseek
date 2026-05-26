@@ -54,16 +54,15 @@ out-of-distribution. GrepSeek wins 4/7 and the best micro-average.
 
 ```
 grepseek/
-├── cold_start_sft/   # generate the cold-start SFT data (Tutor+Planner) + download the corpus
-├── sft/              # supervised fine-tuning of the base model (verl FSDP)
+├── sft/              # cold-start SFT data generation + supervised fine-tuning
 ├── rl/               # GRPO training + serving + checkpoint merge  (the `grepseek` package)
 ├── inference/        # the agent harness (generation + eval) + the fast parallel-search engine
 ├── verl/             # vendored training engine (Apache-2.0; see verl/VENDORED.md)
 ├── TRAINING_ENV.md   # exact, verified environment recipe (CUDA 12.8 / torch 2.10 / vLLM 0.17 / …)
 └── examples/         # sample questions for the inference quickstart
 ```
-Each stage has its own README: [cold_start_sft](cold_start_sft), [sft](sft),
-[rl](rl), [inference](inference).
+Each stage has its own README: [SFT data generation](sft/data_generation),
+[SFT training](sft), [rl](rl), [inference](inference).
 
 ## Installation
 
@@ -73,11 +72,11 @@ git clone https://github.com/alirezasalemi7/grepseek && cd grepseek
 Set up the training/inference environment from the **exact, verified recipe** in
 [`TRAINING_ENV.md`](TRAINING_ENV.md) (conda CUDA 12.8 toolkit → torch 2.10 cu128 →
 flash-attn → vLLM 0.17 → verl via `PYTHONPATH`). The lightweight data-generation
-stage has its own smaller env — see [cold_start_sft/README.md](cold_start_sft/README.md).
+stage has its own smaller env — see [sft/data_generation/README.md](sft/data_generation/README.md).
 
 Download the corpus once (≈14 GB; verified byte-identical to the paper's):
 ```bash
-python cold_start_sft/download_corpus.py --out_dir data/wiki_18_corpus
+python sft/data_generation/download_corpus.py --dest data/wiki_18_corpus
 ```
 
 ## Quickstart — run the released model (no training)
@@ -106,8 +105,8 @@ speedup — see [inference/README.md](inference/README.md).
 
 ```bash
 # 1. Cold-start SFT data — Answer-Aware Tutor + Answer-Blind Planner (serve a Qwen3.5-27B teacher first)
-#    -> see cold_start_sft/README.md ; or skip and use the released dataset.
-cd cold_start_sft && python create_data.py ... && python to_parquet.py ...     # details in its README
+#    -> see sft/data_generation/README.md ; or skip and use the released dataset.
+(cd sft/data_generation && python create_data.py ... && python to_parquet.py ...)   # details in its README
 
 # 2. Supervised fine-tuning (4×A100-80GB)
 #    -> sft/README.md

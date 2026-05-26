@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Supervised fine-tuning of the base model on the cold-start trajectories, via
 # verl's FSDP SFT trainer (`verl.trainer.sft_trainer`). Reads the train.parquet
-# produced by ../cold_start_sft/to_parquet.py.
+# produced by data_generation/to_parquet.py.
 #
 # Quick start:
 #   export TRAIN_PARQUET=/path/to/sft_parquet/train.parquet
@@ -37,7 +37,7 @@ export PYTORCH_CUDA_ALLOC_CONF="${PYTORCH_CUDA_ALLOC_CONF:-expandable_segments:T
 export TOKENIZERS_PARALLELISM=true
 
 # --- config (override via env) ---
-TRAIN_PARQUET="${TRAIN_PARQUET:?set TRAIN_PARQUET to .../sft_parquet/train.parquet from cold_start_sft/to_parquet.py}"
+TRAIN_PARQUET="${TRAIN_PARQUET:?set TRAIN_PARQUET to .../sft_parquet/train.parquet from sft/data_generation/to_parquet.py}"
 MODEL_PATH="${MODEL_PATH:-Qwen/Qwen3.5-9B}"
 NPROC="${NPROC:-$(nvidia-smi -L 2>/dev/null | wc -l)}"; NPROC="${NPROC:-1}"
 SAVE_DIR="${SAVE_DIR:-${REPO_ROOT}/checkpoints/sft/$(date +%Y%m%d-%H%M%S)}"

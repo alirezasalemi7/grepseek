@@ -1,6 +1,6 @@
 """VERL BaseTool that mirrors the cold-start data-gen `shell` tool exactly.
 
-Implementation parity with `cold_start_sft/utils/tools.py`:
+Implementation parity with `sft/data_generation/utils/tools.py`:
   - same validator (whitelist + dangerous-pattern blocklist)
   - same `corpus.jsonl -> wiki_corpus.jsonl` rewriting before execution
   - same subprocess execution (bash, cwd=corpus_root, capture stdout/stderr)
@@ -29,7 +29,7 @@ logger.setLevel(os.getenv("VERL_LOGGING_LEVEL", "WARN"))
 
 def _truncate_tokens(text: str, max_tokens: int, tokenizer) -> tuple[str, bool]:
     """Truncate `text` to at most `max_tokens` tokens. Returns (text, was_truncated).
-    Mirrors cold_start_sft/utils/pipeline.py:truncate_tokens exactly. The
+    Mirrors sft/data_generation/utils/pipeline.py:truncate_tokens exactly. The
     tokenizer is the trained model's tokenizer (injected by the agent loop)."""
     if not text:
         return text, False
@@ -46,7 +46,7 @@ def _truncate_tokens(text: str, max_tokens: int, tokenizer) -> tuple[str, bool]:
 
 
 # ---------------------------------------------------------------------------
-# Validator + executor — verbatim copies of cold_start_sft/utils/tools.py
+# Validator + executor — verbatim copies of sft/data_generation/utils/tools.py
 # ---------------------------------------------------------------------------
 
 ALLOWED_COMMANDS = {
@@ -120,7 +120,7 @@ def _execute_pipeline(
 ) -> dict:
     """Run a validated pipeline. Returns the JSON-shaped payload the SFT pipeline
     emits in the trajectory's tool message (see
-    cold_start_sft/utils/pipeline.py:_verl_style_tool_message_content).
+    sft/data_generation/utils/pipeline.py:_verl_style_tool_message_content).
 
     Output is truncated to `max_tokens` tokens using the SAME tokenizer the
     trained model uses, matching the SFT pipeline's `tool_max_tokens=2048`
