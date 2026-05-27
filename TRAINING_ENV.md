@@ -33,7 +33,9 @@ smoke). **Order matters and the steps are not interchangeable:**
 - flash-attn compiles from source against torch (no wheel for torch 2.10) and
   needs a CUDA toolkit + `g++≤12` (recent system gcc is rejected by nvcc). Cap
   `MAX_JOBS` — the parallel `nvcc` passes are memory-heavy and `$(nproc)` OOMs the
-  compile on high-core nodes (we use `MAX_JOBS=4`).
+  compile on high-core nodes (we use `MAX_JOBS=4`). `NVCC_THREADS` also matters:
+  a `MAX_JOBS=4`, `NVCC_THREADS=4` build launches 4 ninja jobs, each with 4 nvcc
+  threads.
 - Install **vLLM first** so it pulls a self-consistent tree (ray, outlines,
   msgspec, xformers, …); installing the pinned list in one pass hits an
   `outlines`/`vllm` resolver conflict.
@@ -47,7 +49,7 @@ smoke). **Order matters and the steps are not interchangeable:**
 conda create -n grepseek python=3.12 && conda activate grepseek
 
 # 1) CUDA 12.8 toolkit + a compatible host compiler (so flash-attn can compile)
-conda install -c conda-forge cuda-toolkit=12.8 gxx_linux-64=12 gcc_linux-64=12
+conda install -c conda-forge cuda-toolkit=12.8 gxx_linux-64=12 gcc_linux-64=12 ripgrep -y
 export CUDA_HOME=$CONDA_PREFIX
 export CC=$CONDA_PREFIX/bin/x86_64-conda-linux-gnu-gcc
 export CXX=$CONDA_PREFIX/bin/x86_64-conda-linux-gnu-g++
@@ -79,6 +81,46 @@ pip install --no-deps "transformers @ git+https://github.com/huggingface/transfo
 #    The SFT/RL launchers add it automatically; to use it outside them:
 #       export PYTHONPATH=$PWD/verl:${PYTHONPATH:-}
 #    (optional editable install instead: `pip install -e verl --no-deps`)
+```
+
+### flash-attn build resources
+
+The flash-attn build uses **host RAM and filesystem I/O**, not GPU memory. If
+the build log ends with plain `Killed`, the OS likely terminated `nvcc` for
+memory pressure. If jobs sit in `D` state with low read/write throughput, move
+`TMPDIR`/`PIP_CACHE_DIR` to local node scratch or build the wheel in a CPU job
+with fast local storage.
+
+For the paper's A100 setup, compile only the needed architecture:
+
+```bash
+export FLASH_ATTN_CUDA_ARCHS=80     # A100 / sm80
+```
+
+Rule-of-thumb memory requests for an A100-only build:
+
+| build knobs | suggested host RAM |
+|---|---:|
+| `MAX_JOBS=1 NVCC_THREADS=1` | 64 GB |
+| `MAX_JOBS=4 NVCC_THREADS=4` | 100 GB |
+| `MAX_JOBS=8 NVCC_THREADS=4` | 200 GB |
+
+A GPU is not required during compilation as long as the conda CUDA toolkit
+provides `nvcc` and `FLASH_ATTN_CUDA_ARCHS` is set. One useful cluster pattern is
+to build a reusable wheel in a large CPU job, then install that wheel in the GPU
+runtime environment:
+
+```bash
+export CUDA_HOME=$CONDA_PREFIX
+export FLASH_ATTN_CUDA_ARCHS=80
+export MAX_JOBS=4
+export NVCC_THREADS=4
+export TMPDIR=${SLURM_TMPDIR:-/tmp}/flashattn-build
+export PIP_CACHE_DIR=${SLURM_TMPDIR:-/tmp}/pip-cache
+mkdir -p "$TMPDIR" "$PIP_CACHE_DIR" wheelhouse
+
+pip wheel -v flash-attn==2.8.3 --no-build-isolation --wheel-dir wheelhouse
+pip install wheelhouse/flash_attn-*.whl
 ```
 
 [`requirements-train.txt`](requirements-train.txt) lists the exact versions this
