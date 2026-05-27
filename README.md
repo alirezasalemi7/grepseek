@@ -1,7 +1,7 @@
 # GrepSeek: Training Search Agents for Direct Corpus Interaction
 
 [![Paper](https://img.shields.io/badge/Paper-GrepSeek-b31b1b.svg)](https://github.com/alirezasalemi7/grepseek)
-[![Models](https://img.shields.io/badge/🤗%20Models-alireza7-yellow.svg)](https://huggingface.co/collections/alireza7/grepseek)
+[![Models](https://img.shields.io/badge/🤗%20Models-grepseek-yellow.svg)](https://huggingface.co/collections/alireza7/grepseek)
 [![Dataset](https://img.shields.io/badge/🤗%20Dataset-ColdStart--SFT--10k-yellow.svg)](https://huggingface.co/datasets/alireza7/GrepSeek-ColdStart-SFT-10k)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
