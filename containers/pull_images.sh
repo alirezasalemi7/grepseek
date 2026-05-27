@@ -9,24 +9,26 @@ if [[ ! -f "${PROJECT_ROOT}/README.md" || ! -d "${PROJECT_ROOT}/containers" || !
 fi
 
 REGISTRY="${REGISTRY:-ghcr.io/alirezasalemi7}"
-TAG="${TAG:-v1}"
+TAG="${TAG:-v1-slim}"
 IMAGE_DIR="${IMAGE_DIR:-${PROJECT_ROOT}/containers/images}"
 APPTAINER_CACHEDIR="${APPTAINER_CACHEDIR:-${PROJECT_ROOT}/containers/apptainer_cache}"
 APPTAINER_TMPDIR="${APPTAINER_TMPDIR:-${PROJECT_ROOT}/containers/apptainer_tmp}"
 INCLUDE_ALL=0
+IMAGES=(grepseek)
 
 usage() {
   cat <<'USAGE'
 Usage:
-  bash containers/pull_images.sh [--all]
+  bash containers/pull_images.sh [--image IMAGE] [--all]
 
 Defaults:
-  Pulls grepseek and grepseek-retriever.
-  Does not pull grepseek-all unless --all is passed.
+  Pulls only ghcr.io/alirezasalemi7/grepseek:v1-slim.
 
 Options:
-  --all                Also pull ghcr.io/alirezasalemi7/grepseek-all
-  --tag TAG            Image tag to pull. Default: v1
+  --image IMAGE        Image name to pull: grepseek, grepseek-retriever, or grepseek-all.
+                       May be passed more than once.
+  --all                Pull grepseek, grepseek-retriever, and grepseek-all.
+  --tag TAG            Image tag to pull. Default: v1-slim
   --registry REGISTRY  Image registry/namespace. Default: ghcr.io/alirezasalemi7
   --image-dir PATH     Absolute output directory for SIF files.
   -h, --help           Show this help.
@@ -55,6 +57,10 @@ while [[ $# -gt 0 ]]; do
       INCLUDE_ALL=1
       shift
       ;;
+    --image)
+      IMAGES+=("$2")
+      shift 2
+      ;;
     --tag)
       TAG="$2"
       shift 2
@@ -78,6 +84,10 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+if [[ "${INCLUDE_ALL}" == "1" ]]; then
+  IMAGES=(grepseek grepseek-retriever grepseek-all)
+fi
 
 require_absolute_path PROJECT_ROOT "${PROJECT_ROOT}"
 require_absolute_path IMAGE_DIR "${IMAGE_DIR}"
@@ -104,9 +114,18 @@ pull_one() {
   apptainer pull --force "${sif_path}" "docker://${REGISTRY}/${image_name}:${TAG}"
 }
 
-pull_one grepseek
-pull_one grepseek-retriever
-
-if [[ "${INCLUDE_ALL}" == "1" ]]; then
-  pull_one grepseek-all
-fi
+declare -A seen=()
+for image_name in "${IMAGES[@]}"; do
+  case "${image_name}" in
+    grepseek|grepseek-retriever|grepseek-all) ;;
+    *)
+      echo "ERROR: unsupported image: ${image_name}" >&2
+      usage >&2
+      exit 2
+      ;;
+  esac
+  if [[ -z "${seen[${image_name}]:-}" ]]; then
+    pull_one "${image_name}"
+    seen["${image_name}"]=1
+  fi
+done

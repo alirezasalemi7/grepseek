@@ -2,3 +2,10 @@
 !.gitignore
 !README.md
 !pull_images.sh
+!container_runtime.sh
+!serve_vllm.sh
+!run_sample_inference.sh
+!run_full_inference.sh
+!run_sft_data_collection.sh
+!run_sft_training.sh
+!run_rl_training.sh
