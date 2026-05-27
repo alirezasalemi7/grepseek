@@ -142,7 +142,7 @@ Each stage's README has the exact knobs and hyperparameters.
 @article{salemi2026grepseek,
   title  = {GrepSeek: Training Search Agents for Direct Corpus Interaction},
   author = {Salemi, Alireza and Zeng, Chang and Nijasure, Atharva and
-            Chung, Jui-Hui and Rahimi, Negin and Diaz, Fernando and Zamani, Hamed},
+            Chung, Jui-Hui and Rahimi, Razieh and Diaz, Fernando and Zamani, Hamed},
   year   = {2026}
 }
 ```
