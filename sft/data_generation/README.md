@@ -23,10 +23,12 @@ future facts or is otherwise inconsistent. The result is a clean
 > This is the public, simplified pipeline: a single trajectory per question, no
 > self-correction injection and no multi-strategy sampling.
 
+Run commands from the GrepSeek repository root.
+
 ## 1. Install
 
 ```bash
-pip install -r requirements.txt
+pip install -r sft/data_generation/requirements.txt
 ```
 
 You also need **ripgrep** (`rg`) on your `PATH` (the agent's search tool):
@@ -41,12 +43,12 @@ The agent searches the **Wikipedia-2018 corpus** used by Search-R1 (~21M
 passages). Download and unpack it with the helper script:
 
 ```bash
-python download_corpus.py --dest data/wiki_18
+python sft/data_generation/download_corpus.py --dest data/wiki_18_corpus
 ```
 
 This fetches `wiki-18.jsonl.gz` (~5 GB) from
 [`PeterJinGo/wiki-18-corpus`](https://huggingface.co/datasets/PeterJinGo/wiki-18-corpus)
-and writes `data/wiki_18/wiki_corpus.jsonl` (~14 GB). Each line is one passage:
+and writes `data/wiki_18_corpus/wiki_corpus.jsonl` (~14 GB). Each line is one passage:
 
 ```json
 {"id": "0", "contents": "\"Anarchism\"\nAnarchism is a political philosophy ..."}
@@ -55,7 +57,7 @@ and writes `data/wiki_18/wiki_corpus.jsonl` (~14 GB). Each line is one passage:
 > Make sure the destination **and** your HF cache (`HF_HOME`) are on a roomy
 > filesystem — not your home directory.
 
-Point the pipeline at that directory with `--corpus_dir data/wiki_18` (or the
+Point the pipeline at that directory with `--corpus_dir data/wiki_18_corpus` (or the
 `CORPUS_DIR` env var). The agent refers to the file as `corpus.jsonl`; the runner
 rewrites that to `wiki_corpus.jsonl` at execution time.
 
@@ -85,19 +87,19 @@ instead, point a small OpenAI-compatible proxy at it, or set
 ## 4. Generate
 
 ```bash
-python create_data.py \
+python sft/data_generation/create_data.py \
     --dataset hotpotqa --split train --n 100 \
-    --corpus_dir /path/to/wiki_18 \
-    --out output/traces.jsonl \
-    --out_chatml output/sft.jsonl \
-    --out_pretty output/pretty.txt \
+    --corpus_dir data/wiki_18_corpus \
+    --out sft/data_generation/output/traces.jsonl \
+    --out_chatml sft/data_generation/output/sft.jsonl \
+    --out_pretty sft/data_generation/output/pretty.txt \
     --parallel_examples 8
 ```
 
 Or just run the example end-to-end (after exporting `LLM_MODEL` and `CORPUS_DIR`):
 
 ```bash
-bash scripts/run_example.sh
+bash sft/data_generation/scripts/run_example.sh
 ```
 
 ### Outputs
@@ -113,7 +115,10 @@ bash scripts/run_example.sh
 Convert the SFT messages into train/val parquet:
 
 ```bash
-python to_parquet.py --in 'output/sft.jsonl' --out_dir output/sft_parquet --include_tools
+python sft/data_generation/to_parquet.py \
+  --in 'sft/data_generation/output/sft.jsonl' \
+  --out_dir sft/data_generation/output/sft_parquet \
+  --include_tools
 ```
 
 `--include_tools` attaches the `shell` function-call schema as a `tools` column.

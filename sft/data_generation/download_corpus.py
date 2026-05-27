@@ -6,9 +6,10 @@ repo and decompresses it to `<dest>/wiki_corpus.jsonl` (~14 GB). Each line is a
 passage: {"id": ..., "contents": ...}.
 
 Usage:
-    python download_corpus.py --dest data/wiki_18
+    python sft/data_generation/download_corpus.py --dest data/wiki_18_corpus
     # then point the generator at it:
-    #   python create_data.py --corpus_dir data/wiki_18 ...   (or export CORPUS_DIR=data/wiki_18)
+    #   python sft/data_generation/create_data.py --corpus_dir data/wiki_18_corpus ...
+    #   (or export CORPUS_DIR=data/wiki_18_corpus)
 
 Notes:
   - Make sure --dest (and your HF cache, via HF_HOME) live on a roomy filesystem

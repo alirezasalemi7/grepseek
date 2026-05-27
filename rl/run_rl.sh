@@ -10,14 +10,24 @@
 #   export GREPSEEK_VAL_FILES=/path/to/rl/dev.jsonl
 #   export GREPSEEK_CORPUS_ROOT=/path/to/wiki_18_corpus      # dir holding wiki_corpus.jsonl
 #   export NPROC=4
-#   bash run_rl.sh
+#   bash rl/run_rl.sh
 #
 # All knobs are environment variables (see below). Extra args are passed through
-# to main_ppo, e.g.:  bash run_rl.sh actor_rollout_ref.actor.optim.lr=2e-6
+# to main_ppo, e.g.:  bash rl/run_rl.sh actor_rollout_ref.actor.optim.lr=2e-6
 # Runs on any machine with >=2 GPUs once your training env is active.
 set -euo pipefail
-cd "$(dirname "$0")"
-REPO_ROOT="$(cd .. && pwd)"          # the repo root (holds rl/ and verl/)
+REPO_ROOT="${PWD}"                   # run launchers from the repo root
+if [[ ! -f "${REPO_ROOT}/README.md" || ! -d "${REPO_ROOT}/sft" || ! -d "${REPO_ROOT}/rl" || ! -d "${REPO_ROOT}/inference" ]]; then
+  echo "error: run this command from the grepseek repo root, e.g.:" >&2
+  echo "       bash rl/run_rl.sh" >&2
+  exit 2
+fi
+root_path() {
+  case "$1" in
+    /*) printf '%s\n' "$1" ;;
+    *) printf '%s/%s\n' "${REPO_ROOT}" "$1" ;;
+  esac
+}
 export GREPSEEK_ROOT="${REPO_ROOT}"
 
 # --- verl + grepseek on PYTHONPATH (both used via PYTHONPATH, not pip-installed) ---
@@ -48,6 +58,9 @@ export TOKENIZERS_PARALLELISM=true
 : "${GREPSEEK_TRAIN_FILES:?set GREPSEEK_TRAIN_FILES to the RL train JSONL}"
 : "${GREPSEEK_VAL_FILES:?set GREPSEEK_VAL_FILES to the RL val/dev JSONL}"
 : "${GREPSEEK_CORPUS_ROOT:?set GREPSEEK_CORPUS_ROOT to the dir containing wiki_corpus.jsonl}"
+GREPSEEK_TRAIN_FILES="$(root_path "${GREPSEEK_TRAIN_FILES}")"
+GREPSEEK_VAL_FILES="$(root_path "${GREPSEEK_VAL_FILES}")"
+GREPSEEK_CORPUS_ROOT="$(root_path "${GREPSEEK_CORPUS_ROOT}")"
 export GREPSEEK_TRAIN_FILES GREPSEEK_VAL_FILES
 # The search tool reads VERL_TOOL_CORPUS_ROOT directly (takes precedence over the
 # yaml corpus_root). It expects ${GREPSEEK_CORPUS_ROOT}/wiki_corpus.jsonl to exist.
@@ -65,6 +78,8 @@ export GREPSEEK_MODEL_PATH="${GREPSEEK_MODEL_PATH:-Qwen/Qwen3.5-9B}"
 NPROC="${NPROC:-$(nvidia-smi -L 2>/dev/null | wc -l)}"; NPROC="${NPROC:-4}"
 ULYSSES_SP="${ULYSSES_SP:-2}"   # must divide NPROC; paper used 2 on 4 GPUs
 export GREPSEEK_OUTPUT_DIR="${GREPSEEK_OUTPUT_DIR:-${REPO_ROOT}/checkpoints/rl/$(date +%Y%m%d-%H%M%S)}"
+GREPSEEK_OUTPUT_DIR="$(root_path "${GREPSEEK_OUTPUT_DIR}")"
+export GREPSEEK_OUTPUT_DIR
 mkdir -p "${GREPSEEK_OUTPUT_DIR}"
 
 # --- optional Weights & Biases (console-only unless BOTH a key and entity are set) ---

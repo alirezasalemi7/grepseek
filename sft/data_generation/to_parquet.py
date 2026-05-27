@@ -10,7 +10,9 @@ for already-seen ids), and optionally attach a `tools` column carrying the
 function-call schema for the `shell` tool.
 
 Example:
-    python to_parquet.py --in 'output/*_sft.jsonl' --out_dir output/sft_parquet \\
+    python sft/data_generation/to_parquet.py \\
+        --in 'sft/data_generation/output/*_sft.jsonl' \\
+        --out_dir sft/data_generation/output/sft_parquet \\
         --val_frac 0.02 --include_tools
 """
 import argparse

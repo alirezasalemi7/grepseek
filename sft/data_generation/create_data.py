@@ -4,11 +4,12 @@ Implements the backward-construction + tutor-edit forward generation pipeline
 described in the README. Each output line is a richly-nested record with all
 intermediate prompts, raw LLM responses, and decisions for offline debugging.
 
-Run (from this directory, with an OpenAI-compatible teacher server reachable):
-    python create_data.py --dataset hotpotqa --n 20 \\
+Run from the repository root, with an OpenAI-compatible teacher server reachable:
+    python sft/data_generation/create_data.py --dataset hotpotqa --n 20 \\
         --host 127.0.0.1 --port 8000 --model <served-model-name> \\
-        --corpus_dir /path/to/wiki_18 \\
-        --out output/traces.jsonl --out_chatml output/sft.jsonl
+        --corpus_dir data/wiki_18_corpus \\
+        --out sft/data_generation/output/traces.jsonl \\
+        --out_chatml sft/data_generation/output/sft.jsonl
 
 See README.md for how to launch the teacher (e.g. vLLM) and obtain the corpus.
 """
@@ -17,15 +18,11 @@ import json
 import glob
 import os
 import random
-import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import tqdm
-
-# Make the local `utils` package importable regardless of the working directory.
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from utils.llm import ServerLLM
 from utils.load_hotpotqa import load_hotpotqa

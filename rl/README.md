@@ -17,6 +17,8 @@ pipelines and is rewarded for answer correctness (F1). Training uses
 Both `grepseek` (this dir) and `verl` are used **via `PYTHONPATH`** — nothing to
 pip-install. `run_rl.sh` sets the path up for you.
 
+Run commands from the GrepSeek repository root.
+
 ## Prerequisites
 
 1. **Environment** — the training env from [`../TRAINING_ENV.md`](../TRAINING_ENV.md)
@@ -37,7 +39,7 @@ pip-install. `run_rl.sh` sets the path up for you.
    point `GREPSEEK_CORPUS_ROOT` at the directory that contains it.
 4. **RL data** — build it with one command from NQ + HotpotQA (the paper's data):
    ```bash
-   python prepare_rl_data.py --out_dir data/rl/nq_hotpot     # writes train.jsonl + dev.jsonl
+   python rl/prepare_rl_data.py --out_dir data/rl/nq_hotpot     # writes train.jsonl + dev.jsonl
    ```
    Any QA JSONL works, though — one record per line with `id`/`qid`,
    `question`/`query`, and `golden_answers` (FlashRAG-style), e.g.
@@ -56,12 +58,12 @@ export GREPSEEK_TRAIN_FILES=data/rl/nq_hotpot/train.jsonl
 export GREPSEEK_VAL_FILES=data/rl/nq_hotpot/dev.jsonl
 export GREPSEEK_CORPUS_ROOT=/path/to/wiki_18_corpus      # dir holding wiki_corpus.jsonl
 export NPROC=4                                           # GPUs (paper: 4×A100-80GB)
-bash run_rl.sh
+bash rl/run_rl.sh
 ```
 
 Extra args pass straight through to verl, e.g.
-`bash run_rl.sh actor_rollout_ref.actor.optim.lr=2e-6 trainer.total_training_steps=100`.
-Checkpoints land in `GREPSEEK_OUTPUT_DIR` (default `../checkpoints/rl/<timestamp>/`).
+`bash rl/run_rl.sh actor_rollout_ref.actor.optim.lr=2e-6 trainer.total_training_steps=100`.
+Checkpoints land in `GREPSEEK_OUTPUT_DIR` (default `checkpoints/rl/<timestamp>/`).
 
 To enable Weights & Biases, set `WANDB_API_KEY` and `WANDB_ENTITY` (otherwise it
 logs to console only).
@@ -103,11 +105,11 @@ verl writes sharded FSDP checkpoints under `GREPSEEK_OUTPUT_DIR/global_step_NNN/
 
 ```bash
 # 1. Merge the actor FSDP shards into a single HF-format dir
-CKPT_DIR=../checkpoints/rl/<run>/global_step_200 bash convert_to_hf.sh
+CKPT_DIR=checkpoints/rl/<run>/global_step_200 bash rl/convert_to_hf.sh
 #    -> writes <...>/global_step_200/actor/huggingface
 
 # 2. Serve it with vLLM (OpenAI-compatible API, Qwen3 tool calling)
-MODEL_PATH=../checkpoints/rl/<run>/global_step_200/actor/huggingface bash serve_rl.sh
+MODEL_PATH=checkpoints/rl/<run>/global_step_200/actor/huggingface bash rl/serve_rl.sh
 #    -> http://<host>:10730/v1
 ```
 

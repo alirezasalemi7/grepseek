@@ -3,29 +3,38 @@
 # convert them to train/val parquet.
 #
 # Prerequisites (see README.md):
-#   - pip install -r requirements.txt   and   ripgrep (`rg`) on PATH
+#   - pip install -r sft/data_generation/requirements.txt   and   ripgrep (`rg`) on PATH
 #   - an OpenAI-compatible teacher server reachable at $LLM_HOST:$LLM_PORT
 #     serving model $LLM_MODEL
 #   - the wiki-18 corpus: $CORPUS_DIR must contain wiki_corpus.jsonl
 set -euo pipefail
-cd "$(dirname "$0")/.."   # run from the package root
+REPO_ROOT="${PWD}"
+if [[ ! -f "${REPO_ROOT}/README.md" || ! -d "${REPO_ROOT}/sft/data_generation" ]]; then
+  echo "error: run this command from the grepseek repo root, e.g.:" >&2
+  echo "       bash sft/data_generation/scripts/run_example.sh" >&2
+  exit 2
+fi
 
 : "${LLM_MODEL:?set LLM_MODEL to your served model name (vLLM --served-model-name)}"
 : "${CORPUS_DIR:?set CORPUS_DIR to a directory containing wiki_corpus.jsonl}"
 export LLM_HOST="${LLM_HOST:-127.0.0.1}"
 export LLM_PORT="${LLM_PORT:-8000}"
 
-python create_data.py \
+python sft/data_generation/create_data.py \
   --dataset hotpotqa --split train --n 10 \
   --corpus_dir "$CORPUS_DIR" \
-  --out output/traces.jsonl \
-  --out_chatml output/sft.jsonl \
-  --out_pretty output/pretty.txt \
+  --out sft/data_generation/output/traces.jsonl \
+  --out_chatml sft/data_generation/output/sft.jsonl \
+  --out_pretty sft/data_generation/output/pretty.txt \
   --parallel_examples 4
 
 # Turn the successful trajectories into train/val parquet for SFT:
-python to_parquet.py --in 'output/sft.jsonl' --out_dir output/sft_parquet --include_tools
+python sft/data_generation/to_parquet.py \
+  --in 'sft/data_generation/output/sft.jsonl' \
+  --out_dir sft/data_generation/output/sft_parquet \
+  --include_tools
 
 echo
-echo "Done. Inspect output/pretty.txt for human-readable trajectories,"
-echo "output/sft.jsonl for the SFT messages, and output/sft_parquet/ for training files."
+echo "Done. Inspect sft/data_generation/output/pretty.txt for human-readable trajectories,"
+echo "sft/data_generation/output/sft.jsonl for the SFT messages, and"
+echo "sft/data_generation/output/sft_parquet/ for training files."

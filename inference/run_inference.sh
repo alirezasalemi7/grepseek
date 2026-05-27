@@ -4,19 +4,23 @@
 #
 # Generation (no benchmark, gold optional):
 #   GREPSEEK_CORPUS_ROOT=/path/to/wiki_18_corpus \
-#     bash run_inference.sh --base_url http://HOST:PORT/v1 --model grepseek \
+#     bash inference/run_inference.sh --base_url http://HOST:PORT/v1 --model grepseek \
 #       --input my_questions.jsonl --out_dir output/gen
 #
 # Benchmark eval (Search-R1 QA suite, scored EM/F1):
 #   GREPSEEK_CORPUS_ROOT=/path/to/wiki_18_corpus \
-#     bash run_inference.sh --base_url http://HOST:PORT/v1 --model grepseek \
+#     bash inference/run_inference.sh --base_url http://HOST:PORT/v1 --model grepseek \
 #       --datasets nq,hotpotqa,bamboogle --limit 200 --out_dir output/eval
 #
-# Serve the model first with ../rl/serve_rl.sh (or any OpenAI-compatible vLLM
+# Serve the model first with rl/serve_rl.sh (or any OpenAI-compatible vLLM
 # server). Run `python -m inference.run --help` for the full flag list.
 set -euo pipefail
-cd "$(dirname "$0")"
-REPO_ROOT="$(cd .. && pwd)"          # repo root; the `inference` package lives under it
+REPO_ROOT="${PWD}"                   # run launchers from the repo root
+if [[ ! -f "${REPO_ROOT}/README.md" || ! -d "${REPO_ROOT}/sft" || ! -d "${REPO_ROOT}/rl" || ! -d "${REPO_ROOT}/inference" ]]; then
+  echo "error: run this command from the grepseek repo root, e.g.:" >&2
+  echo "       bash inference/run_inference.sh --help" >&2
+  exit 2
+fi
 export PYTHONPATH="${REPO_ROOT}:${PYTHONPATH:-}"
 
 # caches off the home directory

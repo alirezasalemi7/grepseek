@@ -70,10 +70,12 @@ Each stage has its own README: [SFT data generation](sft/data_generation),
 ```bash
 git clone https://github.com/alirezasalemi7/grepseek && cd grepseek
 ```
-Set up the training/inference environment from the **exact, verified recipe** in
-[`TRAINING_ENV.md`](TRAINING_ENV.md) (conda CUDA 12.8 toolkit → torch 2.10 cu128 →
-flash-attn → vLLM 0.17 → verl via `PYTHONPATH`). The lightweight data-generation
-stage has its own smaller env — see [sft/data_generation/README.md](sft/data_generation/README.md).
+All commands below assume this repository root as the current working directory.
+Set up the training/inference environment from the **portable, verified recipe**
+in [`TRAINING_ENV.md`](TRAINING_ENV.md) (conda CUDA 12.8 toolkit → torch 2.10
+cu128 → flash-attn → vLLM 0.17 → verl via `PYTHONPATH`). The lightweight
+data-generation stage has its own smaller env — see
+[sft/data_generation/README.md](sft/data_generation/README.md).
 
 Alternatively, use the prebuilt Docker/GHCR or Apptainer environments described
 in [`containers/README.md`](containers/README.md). The container images include
@@ -92,7 +94,7 @@ Hub (add `HF_TOKEN=...` if the repo is private).
 
 ```bash
 # 1. serve GrepSeek (1–2 A100s; vLLM, OpenAI-compatible, Qwen3 tool calling)
-MODEL_PATH=alireza7/GrepSeek-Qwen3.5-9B-GRPO bash rl/serve_rl.sh         # -> http://localhost:10730/v1
+MODEL_PATH=alireza7/GrepSeek-Qwen3.5-9B-GRPO TP_SIZE=1 bash rl/serve_rl.sh  # -> http://localhost:10730/v1
 
 # 2a. generation on your own questions
 GREPSEEK_CORPUS_ROOT=data/wiki_18_corpus \
@@ -112,12 +114,15 @@ speedup — see [inference/README.md](inference/README.md).
 ```bash
 # 1. Cold-start SFT data — Answer-Aware Tutor + Answer-Blind Planner (serve a Qwen3.5-27B teacher first)
 #    -> see sft/data_generation/README.md ; or skip and use the released dataset.
-(cd sft/data_generation && python create_data.py ... && python to_parquet.py ...)   # details in its README
+python sft/data_generation/create_data.py ...                                     # details in its README
+python sft/data_generation/to_parquet.py --in 'sft/data_generation/output/sft.jsonl' \
+  --out_dir sft/data_generation/output/sft_parquet --include_tools
 
 # 2. Supervised fine-tuning (4×A100-80GB)
 #    -> sft/README.md
 TRAIN_PARQUET=.../train.parquet MODEL_PATH=Qwen/Qwen3.5-9B NPROC=4 bash sft/run_sft.sh
-python -m verl.model_merger merge --backend fsdp --local_dir <ckpt>/global_step_N --target_dir <ckpt>/hf
+PYTHONPATH=$PWD/verl:${PYTHONPATH:-} python -m verl.model_merger merge \
+  --backend fsdp --local_dir <ckpt>/global_step_N --target_dir <ckpt>/hf
 
 # 3. RL with GRPO (4×A100-80GB), initialized from the SFT checkpoint
 #    -> rl/README.md
@@ -125,7 +130,7 @@ python rl/prepare_rl_data.py --out_dir data/rl/nq_hotpot          # NQ + HotpotQ
 GREPSEEK_MODEL_PATH=<sft_hf> GREPSEEK_TRAIN_FILES=data/rl/nq_hotpot/train.jsonl \
 GREPSEEK_VAL_FILES=data/rl/nq_hotpot/dev.jsonl GREPSEEK_CORPUS_ROOT=data/wiki_18_corpus \
 NPROC=4 bash rl/run_rl.sh
-bash rl/convert_to_hf.sh CKPT_DIR=<rl_ckpt>/global_step_200       # merge for serving
+CKPT_DIR=<rl_ckpt>/global_step_200 bash rl/convert_to_hf.sh       # merge for serving
 
 # 4. Evaluate — see Quickstart step 2b.
 ```

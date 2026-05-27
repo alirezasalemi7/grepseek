@@ -14,6 +14,7 @@ It also ships the **fast execution engine** ([`parallel_search/`](parallel_searc
 calls without changing their output (byte-identical to the single-file path).
 
 Everything is plain Python (`python -m inference.run`); nothing SLURM-specific.
+Run commands from the GrepSeek repository root.
 
 ## Prerequisites
 
@@ -38,7 +39,7 @@ Input is a JSON/JSONL where each row has a `question` (or `query`); `id` and
 
 ```bash
 GREPSEEK_CORPUS_ROOT=/path/to/wiki_18_corpus \
-  bash run_inference.sh \
+  bash inference/run_inference.sh \
     --base_url http://HOST:PORT/v1 --model grepseek \
     --input my_questions.jsonl --out_dir output/gen
 ```
@@ -52,7 +53,7 @@ scored too; pass `--no_eval` to never score.
 
 ```bash
 GREPSEEK_CORPUS_ROOT=/path/to/wiki_18_corpus \
-  bash run_inference.sh \
+  bash inference/run_inference.sh \
     --base_url http://HOST:PORT/v1 --model grepseek \
     --datasets nq,hotpotqa,2wikimultihopqa,bamboogle --limit 200 \
     --parallel 16 --out_dir output/eval
@@ -79,12 +80,12 @@ python -m inference.parallel_search.sharder \
     --src /path/to/wiki_18_corpus/wiki_corpus.jsonl --dst /path/to/shards_16 --n 16
 
 # 2a. In-process engine — pass --engine_mode inproc + --shard_dir:
-bash run_inference.sh ... --engine_mode inproc --shard_dir /path/to/shards_16
+bash inference/run_inference.sh ... --engine_mode inproc --shard_dir /path/to/shards_16
 
 # 2b. Or a shared daemon (one process serves many eval workers over a socket):
 python -m inference.parallel_search.daemon --shard_dir /path/to/shards_16 \
     --socket /tmp/grepseek_search.sock &
-bash run_inference.sh ... --engine_mode daemon --socket /tmp/grepseek_search.sock
+bash inference/run_inference.sh ... --engine_mode daemon --socket /tmp/grepseek_search.sock
 ```
 
 Default is `--engine_mode none` (single-file path); the engine is purely an

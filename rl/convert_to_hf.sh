@@ -10,17 +10,29 @@
 #                     alongside the existing tokenizer/config).
 #
 # Usage:
-#   CKPT_DIR=/path/to/checkpoints/rl/<run>/global_step_200 bash convert_to_hf.sh
-#   CKPT_DIR=... HF_DIR=/path/to/dest bash convert_to_hf.sh
+#   CKPT_DIR=/path/to/checkpoints/rl/<run>/global_step_200 bash rl/convert_to_hf.sh
+#   CKPT_DIR=... HF_DIR=/path/to/dest bash rl/convert_to_hf.sh
 set -euo pipefail
-cd "$(dirname "$0")"
-REPO_ROOT="$(cd .. && pwd)"
+REPO_ROOT="${PWD}"
+if [[ ! -f "${REPO_ROOT}/README.md" || ! -d "${REPO_ROOT}/sft" || ! -d "${REPO_ROOT}/rl" || ! -d "${REPO_ROOT}/inference" ]]; then
+  echo "error: run this command from the grepseek repo root, e.g.:" >&2
+  echo "       CKPT_DIR=checkpoints/rl/<run>/global_step_200 bash rl/convert_to_hf.sh" >&2
+  exit 2
+fi
+root_path() {
+  case "$1" in
+    /*) printf '%s\n' "$1" ;;
+    *) printf '%s/%s\n' "${REPO_ROOT}" "$1" ;;
+  esac
+}
 export PYTHONPATH="${REPO_ROOT}/verl:${PYTHONPATH:-}"
 export HF_HOME="${HF_HOME:-${REPO_ROOT}/.cache}"
 export HF_HUB_CACHE="${HF_HUB_CACHE:-${HF_HOME}/hub}"
 
 CKPT_DIR="${CKPT_DIR:?set CKPT_DIR to a verl RL save dir, e.g. .../checkpoints/rl/<run>/global_step_200}"
+CKPT_DIR="$(root_path "${CKPT_DIR}")"
 HF_DIR="${HF_DIR:-${CKPT_DIR}/actor/huggingface}"
+HF_DIR="$(root_path "${HF_DIR}")"
 
 [[ -d "${CKPT_DIR}/actor" ]] || { echo "missing ${CKPT_DIR}/actor (RL ckpt layout expects FSDP shards under actor/)" >&2; exit 1; }
 [[ -d "${CKPT_DIR}/actor/huggingface" ]] || { echo "missing ${CKPT_DIR}/actor/huggingface (config.json + tokenizer)" >&2; exit 1; }

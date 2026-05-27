@@ -1,20 +1,24 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
-PROJECT_ROOT="$(cd -- "${SCRIPT_DIR}/.." && pwd -P)"
+PROJECT_ROOT="${PWD}"
+if [[ ! -f "${PROJECT_ROOT}/README.md" || ! -d "${PROJECT_ROOT}/containers" || ! -d "${PROJECT_ROOT}/rl" ]]; then
+  echo "ERROR: run this command from the grepseek repo root, e.g.:" >&2
+  echo "       bash containers/pull_images.sh" >&2
+  exit 2
+fi
 
 REGISTRY="${REGISTRY:-ghcr.io/alirezasalemi7}"
 TAG="${TAG:-v1}"
-IMAGE_DIR="${IMAGE_DIR:-${SCRIPT_DIR}/images}"
-APPTAINER_CACHEDIR="${APPTAINER_CACHEDIR:-${SCRIPT_DIR}/apptainer_cache}"
-APPTAINER_TMPDIR="${APPTAINER_TMPDIR:-${SCRIPT_DIR}/apptainer_tmp}"
+IMAGE_DIR="${IMAGE_DIR:-${PROJECT_ROOT}/containers/images}"
+APPTAINER_CACHEDIR="${APPTAINER_CACHEDIR:-${PROJECT_ROOT}/containers/apptainer_cache}"
+APPTAINER_TMPDIR="${APPTAINER_TMPDIR:-${PROJECT_ROOT}/containers/apptainer_tmp}"
 INCLUDE_ALL=0
 
 usage() {
   cat <<'USAGE'
 Usage:
-  bash <project root>/containers/pull_images.sh [--all]
+  bash containers/pull_images.sh [--all]
 
 Defaults:
   Pulls grepseek and grepseek-retriever.

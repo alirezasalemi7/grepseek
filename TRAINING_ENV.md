@@ -1,25 +1,27 @@
 # Training environment (SFT + RL)
 
 The SFT and RL stages run on **verl** and need a heavier environment than the
-data-gen stage (CUDA, PyTorch, flash-attn, vLLM, …). Two exact snapshots of the
-environment used in the paper are provided — pick one.
+data-gen stage (CUDA, PyTorch, flash-attn, vLLM, …). Use **Option B** for normal
+setup; Option A is an archival conda snapshot of the original machine.
 
 **Versions:** Python **3.12.9**, CUDA **12.8**, PyTorch **2.10.0+cu128**,
 vLLM **0.17.0**, flash-attn **2.8.3**, flash-linear-attention **0.4.2**,
 transformers pinned to a git commit with Qwen3.5 support.
 
-## Option A — conda (most exact)
+## Option A — conda snapshot (archival, machine-specific)
 
 [`environment-train.yml`](environment-train.yml) is a direct
-`conda env export` of the env (conda + pip packages, exact build strings):
+`conda env export` of the env (conda + pip packages, exact build strings). It
+may fail on machines where those exact conda builds are unavailable in the
+configured channels:
 
 ```bash
 conda env create -f environment-train.yml      # creates env "grepseek"
 conda activate grepseek
 ```
 
-> Build strings target Linux/x86-64 + CUDA 12.8; on a different platform use
-> Option B instead.
+> Build strings target the original Linux/x86-64 + CUDA 12.8 setup; for a
+> portable install, use Option B instead.
 
 ## Option B — pip (portable, recommended)
 
@@ -75,7 +77,7 @@ pip install --no-deps "transformers @ git+https://github.com/huggingface/transfo
 
 # 8) verl is vendored in ./verl and used via PYTHONPATH — no install needed.
 #    The SFT/RL launchers add it automatically; to use it outside them:
-#       export PYTHONPATH=$PWD/verl:$PYTHONPATH
+#       export PYTHONPATH=$PWD/verl:${PYTHONPATH:-}
 #    (optional editable install instead: `pip install -e verl --no-deps`)
 ```
 

@@ -47,14 +47,11 @@ from . import prompts
 
 # Directory that contains the corpus file (CORPUS_FILENAME_ACTUAL below).
 # Override with the CORPUS_DIR env var or create_data.py's --corpus_dir flag.
-# Default: the `data/` directory next to this package.
-CORPUS_DIR = os.environ.get(
-    "CORPUS_DIR",
-    os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data"),
-)
+# Default is root-relative; run public commands from the repository root.
+CORPUS_DIR = os.environ.get("CORPUS_DIR", "data/wiki_18_corpus")
 CORPUS_FILENAME_LOGICAL = "corpus.jsonl"     # what the agent sees in commands
 CORPUS_FILENAME_ACTUAL = "wiki_corpus.jsonl"  # what's actually on disk
-CORPUS_PATH = f"{CORPUS_DIR}/{CORPUS_FILENAME_ACTUAL}"  # full absolute path (back-compat)
+CORPUS_PATH = os.path.join(CORPUS_DIR, CORPUS_FILENAME_ACTUAL)  # back-compat
 
 NO_THINK = {"chat_template_kwargs": {"enable_thinking": False}}
 

@@ -11,6 +11,8 @@ ghcr.io/alirezasalemi7/grepseek-all:v1        optional combined runtime
 The two split images are recommended. The combined image is larger and is only
 needed when one container must contain both environments.
 
+Run helper commands from the GrepSeek repository root.
+
 ## Docker
 
 Pull the split images:
@@ -37,26 +39,26 @@ echo "$CR_PAT" | docker login ghcr.io -u "$GITHUB_USER" --password-stdin
 On systems that use Apptainer, pull the split images with:
 
 ```bash
-bash <project root>/containers/pull_images.sh
+bash containers/pull_images.sh
 ```
 
 This creates:
 
 ```text
-<project root>/containers/images/grepseek_v1.sif
-<project root>/containers/images/grepseek-retriever_v1.sif
+containers/images/grepseek_v1.sif
+containers/images/grepseek-retriever_v1.sif
 ```
 
 Pull the optional combined image too:
 
 ```bash
-bash <project root>/containers/pull_images.sh --all
+bash containers/pull_images.sh --all
 ```
 
 Use another tag:
 
 ```bash
-TAG=v1-slim bash <project root>/containers/pull_images.sh
+TAG=v1-slim bash containers/pull_images.sh
 ```
 
 If the package is private, set Apptainer's Docker auth variables first:
@@ -65,7 +67,7 @@ If the package is private, set Apptainer's Docker auth variables first:
 export APPTAINER_DOCKER_USERNAME="$GITHUB_USER"
 export APPTAINER_DOCKER_PASSWORD="$CR_PAT"
 
-bash <project root>/containers/pull_images.sh
+bash containers/pull_images.sh
 ```
 
 ## Check
@@ -83,7 +85,7 @@ docker run --rm ghcr.io/alirezasalemi7/grepseek-retriever:v1 \
 Apptainer:
 
 ```bash
-apptainer exec --nv <project root>/containers/images/grepseek_v1.sif \
+apptainer exec --nv containers/images/grepseek_v1.sif \
   python -c "import torch; print(torch.cuda.is_available(), torch.version.cuda)"
 ```
 

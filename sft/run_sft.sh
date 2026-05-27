@@ -7,13 +7,23 @@
 #   export TRAIN_PARQUET=/path/to/sft_parquet/train.parquet
 #   export MODEL_PATH=Qwen/Qwen3.5-9B          # base model to fine-tune
 #   export NPROC=4                              # number of GPUs
-#   bash run_sft.sh
+#   bash sft/run_sft.sh
 #
 # All knobs below are overridable via environment variables. Runs on any machine
 # with >=2 GPUs once your training env is active (see ../TRAINING_ENV.md).
 set -euo pipefail
-cd "$(dirname "$0")"
-REPO_ROOT="$(cd .. && pwd)"
+REPO_ROOT="${PWD}"
+if [[ ! -f "${REPO_ROOT}/README.md" || ! -d "${REPO_ROOT}/sft" || ! -d "${REPO_ROOT}/rl" || ! -d "${REPO_ROOT}/inference" ]]; then
+  echo "error: run this command from the grepseek repo root, e.g.:" >&2
+  echo "       bash sft/run_sft.sh" >&2
+  exit 2
+fi
+root_path() {
+  case "$1" in
+    /*) printf '%s\n' "$1" ;;
+    *) printf '%s/%s\n' "${REPO_ROOT}" "$1" ;;
+  esac
+}
 
 # --- verl on PYTHONPATH (the `verl/` git submodule at the repo root) ---
 VERL_DIR="${VERL_DIR:-${REPO_ROOT}/verl}"
@@ -38,9 +48,11 @@ export TOKENIZERS_PARALLELISM=true
 
 # --- config (override via env) ---
 TRAIN_PARQUET="${TRAIN_PARQUET:?set TRAIN_PARQUET to .../sft_parquet/train.parquet from sft/data_generation/to_parquet.py}"
+TRAIN_PARQUET="$(root_path "${TRAIN_PARQUET}")"
 MODEL_PATH="${MODEL_PATH:-Qwen/Qwen3.5-9B}"
 NPROC="${NPROC:-$(nvidia-smi -L 2>/dev/null | wc -l)}"; NPROC="${NPROC:-1}"
 SAVE_DIR="${SAVE_DIR:-${REPO_ROOT}/checkpoints/sft/$(date +%Y%m%d-%H%M%S)}"
+SAVE_DIR="$(root_path "${SAVE_DIR}")"
 
 MAX_LENGTH="${MAX_LENGTH:-16384}"           # raise if your data has longer sequences
 TRAIN_BATCH_SIZE="${TRAIN_BATCH_SIZE:-32}"  # global batch (grad-accumulated)

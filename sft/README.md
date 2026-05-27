@@ -5,6 +5,8 @@ Fine-tune the base model on the cold-start trajectories produced by
 the policy before RL. Training uses verl's FSDP SFT trainer
 (`verl.trainer.sft_trainer`).
 
+Run commands from the GrepSeek repository root.
+
 ## Prerequisites
 
 1. **verl** — vendored at the repo root in [`../verl`](../verl) (the exact
@@ -12,17 +14,20 @@ the policy before RL. Training uses verl's FSDP SFT trainer
    `PYTHONPATH` automatically.
 
 2. The training environment (CUDA 12.8, PyTorch 2.10, flash-attn, vLLM, …).
-   Set it up from the exact snapshots in [`../TRAINING_ENV.md`](../TRAINING_ENV.md)
-   (conda `environment-train.yml` or the pip freeze). Multi-GPU (e.g. 4×A100-80GB)
-   is recommended for the 9B model at 16K sequence length.
+   Set it up from the portable recipe in [`../TRAINING_ENV.md`](../TRAINING_ENV.md).
+   Multi-GPU (e.g. 4×A100-80GB) is recommended for the 9B model at 16K sequence
+   length.
 
 3. **Training data** — run the data-gen + parquet steps first:
 
    ```bash
-   cd data_generation
-   python create_data.py --dataset hotpotqa --n 10000 --out_chatml output/sft.jsonl ...
-   python to_parquet.py --in 'output/sft.jsonl' --out_dir output/sft_parquet --include_tools
-   cd ..
+   python sft/data_generation/create_data.py \
+     --dataset hotpotqa --n 10000 \
+     --out_chatml sft/data_generation/output/sft.jsonl ...
+   python sft/data_generation/to_parquet.py \
+     --in 'sft/data_generation/output/sft.jsonl' \
+     --out_dir sft/data_generation/output/sft_parquet \
+     --include_tools
    ```
 
 ## Run
@@ -32,13 +37,13 @@ Runs on **any machine with ≥2 GPUs** (no cluster/scheduler required) —
 [`../TRAINING_ENV.md`](../TRAINING_ENV.md)), then:
 
 ```bash
-export TRAIN_PARQUET=data_generation/output/sft_parquet/train.parquet
+export TRAIN_PARQUET=sft/data_generation/output/sft_parquet/train.parquet
 export MODEL_PATH=Qwen/Qwen3.5-9B     # base model to fine-tune
 export NPROC=4                         # number of GPUs (4×A100-80GB reproduces the paper)
-bash run_sft.sh
+bash sft/run_sft.sh
 ```
 
-Checkpoints are written to `SAVE_DIR` (default `../checkpoints/sft/<timestamp>/`).
+Checkpoints are written to `SAVE_DIR` (default `checkpoints/sft/<timestamp>/`).
 All knobs are environment variables — see the top of [`run_sft.sh`](run_sft.sh).
 
 > **GPU count / sequence parallelism.** The 9B model at 16K sequence length needs
@@ -79,7 +84,7 @@ caps the steps and `SAVE_FREQ=-1` skips checkpoints:
 TRAIN_PARQUET=.../train.parquet MODEL_PATH=Qwen/Qwen3.5-9B \
 NPROC=4 ULYSSES_SP_SIZE=4 \
 TOTAL_TRAINING_STEPS=5 SAVE_FREQ=-1 SAVE_DIR=/tmp/sft_smoke \
-bash run_sft.sh
+bash sft/run_sft.sh
 ```
 
 Expect a falling loss over the 5 steps (we observed `0.81 → 0.65 → 0.55`) and no
@@ -94,7 +99,7 @@ inference or as the RL initialization, merge it to HuggingFace format with verl'
 model merger:
 
 ```bash
-python -m verl.model_merger merge --backend fsdp \
+PYTHONPATH=$PWD/verl:${PYTHONPATH:-} python -m verl.model_merger merge --backend fsdp \
     --local_dir SAVE_DIR/global_step_<N> --target_dir SAVE_DIR/hf
 ```
 
