@@ -21,7 +21,9 @@ export HF_HUB_CACHE="${HF_HUB_CACHE:-${HF_HOME}/hub}"
 
 MODEL_PATH="${MODEL_PATH:?set MODEL_PATH to a local HF checkpoint dir or HuggingFace Hub model ID}"
 SERVED_MODEL_NAME="${SERVED_MODEL_NAME:-grepseek}"
-HOST="${HOST:-0.0.0.0}"
+# Do not read generic $HOST: conda compiler toolchains may set it to values like
+# x86_64-conda-linux-gnu, which are not bindable hostnames for vLLM.
+HOST="${GREPSEEK_SERVE_HOST:-0.0.0.0}"
 PORT="${PORT:-10730}"
 TP_SIZE="${TP_SIZE:-2}"
 MAX_MODEL_LEN="${MAX_MODEL_LEN:-16384}"
