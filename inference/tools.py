@@ -97,7 +97,8 @@ def validate_pipeline(cmd: str) -> None:
 #                (mostly `rg -F` literal patterns); rg's `-i` case-folding is
 #                always Unicode-aware regardless of LC_ALL.
 _RG_INJECTED_FLAGS = ("--mmap", "--no-config")
-_GREP_INJECTED_FLAGS = ("--mmap",)  # GNU grep accepts --mmap but not --no-config
+# Modern GNU grep rejects --mmap, so keep grep portable and unmodified.
+_GREP_INJECTED_FLAGS = ()
 
 
 def _augment_rg_flags(cmd: str) -> str:
@@ -152,10 +153,15 @@ def _augment_rg_flags(cmd: str) -> str:
 
 
 def _build_tool_env() -> dict:
-    """Return an env dict with LC_ALL=C overlaid on the parent env. Safe for
-    `rg -F`/literal patterns; LC_ALL=C does not change rg's Unicode case
-    folding (rg uses an internal table regardless of locale)."""
-    return {**os.environ, "LC_ALL": "C"}
+    """Return an env dict for shell tools.
+
+    LC_ALL=C is safe for `rg -F`/literal patterns; rg's Unicode case folding
+    uses an internal table regardless of locale. Drop LD_LIBRARY_PATH only for
+    tool subprocesses so host shell utilities do not load conda shared libs.
+    """
+    env = {**os.environ, "LC_ALL": "C"}
+    env.pop("LD_LIBRARY_PATH", None)
+    return env
 
 
 # ---------------------------------------------------------------------------
