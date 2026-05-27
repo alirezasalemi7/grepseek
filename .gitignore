@@ -31,3 +31,4 @@ cold_start_sft/output/
 .DS_Store
 .idea/
 .vscode/
+.ipynb_checkpoints/
