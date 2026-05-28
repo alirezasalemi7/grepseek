@@ -155,3 +155,6 @@ copy of [verl](https://github.com/volcengine/verl) (Apache-2.0; see
 [verl/VENDORED.md](verl/VENDORED.md)). Benchmarks are from the
 [FlashRAG](https://huggingface.co/datasets/RUC-NLPIR/FlashRAG_datasets) suite and
 the corpus from [`PeterJinGo/wiki-18-corpus`](https://huggingface.co/datasets/PeterJinGo/wiki-18-corpus).
+
+This work was supported in part by the Center for Intelligent Information Retrieval, in part by the Office of Naval Research contract \#N000142412612, in part by the National Science Foundation grant \#2402873 and \#2402874, and with support from Google.org. Any opinions, findings and conclusions or recommendations expressed in this material are those of the authors and do not necessarily reflect those of the sponsors.
+
