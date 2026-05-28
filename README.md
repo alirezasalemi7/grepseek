@@ -58,6 +58,7 @@ grepseek/
 ├── sft/              # cold-start SFT data generation + supervised fine-tuning
 ├── rl/               # GRPO training + serving + checkpoint merge  (the `grepseek` package)
 ├── inference/        # the agent harness (generation + eval) + the fast parallel-search engine
+├── notebooks/        # interactive Colab/local demo notebooks (try the released model without writing code)
 ├── verl/             # vendored training engine (Apache-2.0; see verl/VENDORED.md)
 ├── TRAINING_ENV.md   # exact, verified environment recipe (CUDA 12.8 / torch 2.10 / vLLM 0.17 / …)
 └── examples/         # sample questions for the inference quickstart
@@ -108,6 +109,31 @@ GREPSEEK_CORPUS_ROOT=data/wiki_18_corpus \
 ```
 Add the **fast execution engine** (sharded parallel grep / daemon) for a large
 speedup — see [inference/README.md](inference/README.md).
+
+## Notebooks (interactive demo)
+
+[`notebooks/GrepSeek_demo.ipynb`](notebooks/GrepSeek_demo.ipynb) is a
+self-contained Jupyter demo that runs **on Google Colab *or* on a local CUDA
+box** — Step 0 auto-detects which. On Colab it installs `ripgrep` + vLLM + the
+Qwen3.5 transformers build and clones the repo; locally it reuses your
+existing env / repo / corpus / checkpoint. The notebook spins up vLLM in the
+runtime and prints the agent's full `think → tool_call → tool_response →
+answer` trajectory. A `SERVE_MODE = "4bit"` toggle (on-the-fly bitsandbytes)
+lets a free **T4 (16 GB)** host the 9B model. Nothing is hard-coded —
+`GREPSEEK_REPO`, `GREPSEEK_MODEL`, `GREPSEEK_CORPUS_ROOT`, `GREPSEEK_HOST`,
+`GREPSEEK_PORT` all override the defaults.
+
+- **On Colab:** click the badge, set *Runtime → Change runtime type → GPU*
+  (A100 / L4 / T4), then **Run all**. Step 1 handles installs; Step 2
+  downloads the ~14 GB corpus.
+  [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/alirezasalemi7/grepseek/blob/main/notebooks/GrepSeek_demo.ipynb)
+- **Locally** (CUDA host with the env from [`TRAINING_ENV.md`](TRAINING_ENV.md)
+  already activated, repo cloned, corpus downloaded):
+  ```bash
+  GREPSEEK_CORPUS_ROOT=data/wiki_18_corpus jupyter notebook notebooks/GrepSeek_demo.ipynb
+  ```
+  Step 1 detects you're off-Colab and skips apt/pip/clone; Step 2 finds the
+  corpus and skips the download.
 
 ## Reproduce the full pipeline from scratch
 
