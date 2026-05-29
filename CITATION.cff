@@ -38,6 +38,12 @@ preferred-citation:
   type: article
   title: "GrepSeek: Training Search Agents for Direct Corpus Interaction"
   year: 2026
+  journal: "arXiv preprint arXiv:2605.29307"
+  url: "https://arxiv.org/abs/2605.29307"
+  identifiers:
+    - type: other
+      value: "arXiv:2605.29307"
+      description: "arXiv preprint"
   authors:
     - family-names: Salemi
       given-names: Alireza

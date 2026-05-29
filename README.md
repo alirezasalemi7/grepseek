@@ -1,6 +1,6 @@
 # GrepSeek: Training Search Agents for Direct Corpus Interaction
 
-[![Paper](https://img.shields.io/badge/Paper-GrepSeek-b31b1b.svg)](https://github.com/alirezasalemi7/grepseek)
+[![Paper](https://img.shields.io/badge/arXiv-2605.29307-b31b1b.svg)](https://arxiv.org/abs/2605.29307)
 [![Models](https://img.shields.io/badge/🤗%20Models-grepseek-yellow.svg)](https://huggingface.co/collections/alireza7/grepseek)
 [![Dataset](https://img.shields.io/badge/🤗%20Dataset-ColdStart--SFT--10k-yellow.svg)](https://huggingface.co/datasets/alireza7/GrepSeek-ColdStart-SFT-10k)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
@@ -165,11 +165,14 @@ Each stage's README has the exact knobs and hyperparameters.
 ## Citation
 
 ```bibtex
-@article{salemi2026grepseek,
-  title  = {GrepSeek: Training Search Agents for Direct Corpus Interaction},
-  author = {Salemi, Alireza and Zeng, Chang and Nijasure, Atharva and
-            Chung, Jui-Hui and Rahimi, Razieh and Diaz, Fernando and Zamani, Hamed},
-  year   = {2026}
+@misc{salemi2026grepseektrainingsearchagents,
+      title={GrepSeek: Training Search Agents for Direct Corpus Interaction},
+      author={Alireza Salemi and Chang Zeng and Atharva Nijasure and Jui-Hui Chung and Razieh Rahimi and Fernando Diaz and Hamed Zamani},
+      year={2026},
+      eprint={2605.29307},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL},
+      url={https://arxiv.org/abs/2605.29307},
 }
 ```
 
