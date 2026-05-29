@@ -6,7 +6,8 @@
 #   - pip install -r sft/data_generation/requirements.txt   and   ripgrep (`rg`) on PATH
 #   - an OpenAI-compatible teacher server reachable at $LLM_HOST:$LLM_PORT
 #     serving model $LLM_MODEL
-#   - the wiki-18 corpus: $CORPUS_DIR must contain wiki_corpus.jsonl
+#   - the wiki-18 corpus at data/wiki_18_corpus/wiki_corpus.jsonl, or set
+#     $CORPUS_DIR to a directory containing wiki_corpus.jsonl
 set -euo pipefail
 REPO_ROOT="${PWD}"
 if [[ ! -f "${REPO_ROOT}/README.md" || ! -d "${REPO_ROOT}/sft/data_generation" ]]; then
@@ -16,9 +17,16 @@ if [[ ! -f "${REPO_ROOT}/README.md" || ! -d "${REPO_ROOT}/sft/data_generation" ]
 fi
 
 : "${LLM_MODEL:?set LLM_MODEL to your served model name (vLLM --served-model-name)}"
-: "${CORPUS_DIR:?set CORPUS_DIR to a directory containing wiki_corpus.jsonl}"
+export CORPUS_DIR="${CORPUS_DIR:-${REPO_ROOT}/data/wiki_18_corpus}"
 export LLM_HOST="${LLM_HOST:-127.0.0.1}"
 export LLM_PORT="${LLM_PORT:-8000}"
+
+if [[ ! -f "${CORPUS_DIR}/wiki_corpus.jsonl" ]]; then
+  echo "error: ${CORPUS_DIR}/wiki_corpus.jsonl not found." >&2
+  echo "       Download it with: python sft/data_generation/download_corpus.py --dest data/wiki_18_corpus" >&2
+  echo "       Or set CORPUS_DIR to a directory containing wiki_corpus.jsonl." >&2
+  exit 1
+fi
 
 python sft/data_generation/create_data.py \
   --dataset hotpotqa --split train --n 10 \

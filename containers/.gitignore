@@ -8,4 +8,7 @@
 !run_full_inference.sh
 !run_sft_data_collection.sh
 !run_sft_training.sh
+!prepare_rl_data.sh
 !run_rl_training.sh
+!merge_sft_checkpoint.sh
+!merge_rl_checkpoint.sh

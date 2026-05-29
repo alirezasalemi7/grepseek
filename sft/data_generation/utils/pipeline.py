@@ -47,8 +47,9 @@ from . import prompts
 
 # Directory that contains the corpus file (CORPUS_FILENAME_ACTUAL below).
 # Override with the CORPUS_DIR env var or create_data.py's --corpus_dir flag.
-# Default is root-relative; run public commands from the repository root.
-CORPUS_DIR = os.environ.get("CORPUS_DIR", "data/wiki_18_corpus")
+# Default is the repository-local data/wiki_18_corpus.
+_REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+CORPUS_DIR = os.environ.get("CORPUS_DIR") or os.path.join(_REPO_ROOT, "data", "wiki_18_corpus")
 CORPUS_FILENAME_LOGICAL = "corpus.jsonl"     # what the agent sees in commands
 CORPUS_FILENAME_ACTUAL = "wiki_corpus.jsonl"  # what's actually on disk
 CORPUS_PATH = os.path.join(CORPUS_DIR, CORPUS_FILENAME_ACTUAL)  # back-compat

@@ -148,12 +148,14 @@ python sft/data_generation/to_parquet.py --in 'sft/data_generation/output/sft.js
 #    -> sft/README.md
 TRAIN_PARQUET=.../train.parquet MODEL_PATH=Qwen/Qwen3.5-9B NPROC=4 bash sft/run_sft.sh
 PYTHONPATH=$PWD/verl:${PYTHONPATH:-} python -m verl.model_merger merge \
-  --backend fsdp --local_dir <ckpt>/global_step_N --target_dir <ckpt>/hf
+  --backend fsdp --local_dir <sft_ckpt>/global_step_N \
+  --target_dir <sft_ckpt>/global_step_N/huggingface
 
 # 3. RL with GRPO (4×A100-80GB), initialized from the SFT checkpoint
 #    -> rl/README.md
 python rl/prepare_rl_data.py --out_dir data/rl/nq_hotpot          # NQ + HotpotQA
-GREPSEEK_MODEL_PATH=<sft_hf> GREPSEEK_TRAIN_FILES=data/rl/nq_hotpot/train.jsonl \
+GREPSEEK_MODEL_PATH=<sft_ckpt>/global_step_N/huggingface \
+GREPSEEK_TRAIN_FILES=data/rl/nq_hotpot/train.jsonl \
 GREPSEEK_VAL_FILES=data/rl/nq_hotpot/dev.jsonl GREPSEEK_CORPUS_ROOT=data/wiki_18_corpus \
 NPROC=4 bash rl/run_rl.sh
 CKPT_DIR=<rl_ckpt>/global_step_200 bash rl/convert_to_hf.sh       # merge for serving
@@ -186,4 +188,3 @@ copy of [verl](https://github.com/volcengine/verl) (Apache-2.0; see
 the corpus from [`PeterJinGo/wiki-18-corpus`](https://huggingface.co/datasets/PeterJinGo/wiki-18-corpus).
 
 This work was supported in part by the Center for Intelligent Information Retrieval, in part by the Office of Naval Research contract \#N000142412612, in part by the National Science Foundation grant \#2402873 and \#2402874, and with support from Google.org. Any opinions, findings and conclusions or recommendations expressed in this material are those of the authors and do not necessarily reflect those of the sponsors.
-

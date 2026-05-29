@@ -28,7 +28,8 @@ export HF_HOME="${HF_HOME:-${REPO_ROOT}/.cache}"
 export HF_HUB_CACHE="${HF_HUB_CACHE:-${HF_HOME}/hub}"
 mkdir -p "${HF_HUB_CACHE}"
 
-# Corpus dir: env wins; run.py also reads $GREPSEEK_CORPUS_ROOT as the --corpus_dir default.
-export GREPSEEK_CORPUS_ROOT="${GREPSEEK_CORPUS_ROOT:-}"
+# Corpus dir: env wins; otherwise use the repo-local default. run.py also
+# accepts --corpus_dir, which overrides this argparse default.
+export GREPSEEK_CORPUS_ROOT="${GREPSEEK_CORPUS_ROOT:-${REPO_ROOT}/data/wiki_18_corpus}"
 
 exec python -m inference.run "$@"

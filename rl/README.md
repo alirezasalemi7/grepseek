@@ -36,7 +36,8 @@ Run commands from the GrepSeek repository root.
    not the paper result).
 3. **Corpus** — `wiki_corpus.jsonl` (21M passages). Download with
    [`../sft/data_generation/download_corpus.py`](../sft/data_generation/download_corpus.py);
-   point `GREPSEEK_CORPUS_ROOT` at the directory that contains it.
+   `run_rl.sh` defaults to `data/wiki_18_corpus`, or point
+   `GREPSEEK_CORPUS_ROOT` at another directory that contains it.
 4. **RL data** — build it with one command from NQ + HotpotQA (the paper's data):
    ```bash
    python rl/prepare_rl_data.py --out_dir data/rl/nq_hotpot     # writes train.jsonl + dev.jsonl
@@ -50,13 +51,13 @@ Run commands from the GrepSeek repository root.
 
 GrepSeek RL runs on **any machine with ≥2 GPUs** (no cluster/scheduler required).
 Activate your training env (see [`../TRAINING_ENV.md`](../TRAINING_ENV.md)), set
-five environment variables, and go:
+the model/data/GPU paths, and go:
 
 ```bash
 export GREPSEEK_MODEL_PATH=/path/to/sft_ckpt/global_step_NNN/huggingface   # starting policy (local dir OR an HF Hub ID, e.g. your-org/grepseek-sft-9b)
 export GREPSEEK_TRAIN_FILES=data/rl/nq_hotpot/train.jsonl
 export GREPSEEK_VAL_FILES=data/rl/nq_hotpot/dev.jsonl
-export GREPSEEK_CORPUS_ROOT=/path/to/wiki_18_corpus      # dir holding wiki_corpus.jsonl
+export GREPSEEK_CORPUS_ROOT=/path/to/wiki_18_corpus      # optional if using data/wiki_18_corpus
 export NPROC=4                                           # GPUs (paper: 4×A100-80GB)
 bash rl/run_rl.sh
 ```

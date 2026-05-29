@@ -45,6 +45,7 @@ container_init() {
   IMAGE_DIR="${IMAGE_DIR:-${GREPSEEK_ROOT}/containers/images}"
   CACHE_DIR="${CACHE_DIR:-${GREPSEEK_ROOT}/containers/cache}"
   CONTAINER_RUNTIME="${CONTAINER_RUNTIME:-auto}"
+  CONTAINER_DISABLE_GPU="${CONTAINER_DISABLE_GPU:-0}"
 
   container_require_absolute GREPSEEK_ROOT "${GREPSEEK_ROOT}"
   container_require_absolute IMAGE_DIR "${IMAGE_DIR}"
@@ -82,6 +83,14 @@ container_sif_path() {
 container_image_ref() {
   local image_name="$1"
   printf '%s/%s:%s\n' "${REGISTRY}" "${image_name}" "${TAG}"
+}
+
+container_has_docker_engine() {
+  command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1
+}
+
+container_has_apptainer() {
+  command -v apptainer >/dev/null 2>&1
 }
 
 container_add_bind() {
@@ -153,22 +162,28 @@ container_common_envs() {
 }
 
 container_choose_runtime() {
-  local image_name="$1"
-  local sif_path
-  sif_path="$(container_sif_path "${image_name}")"
   case "${CONTAINER_RUNTIME}" in
-    apptainer|docker)
-      printf '%s\n' "${CONTAINER_RUNTIME}"
-      ;;
-    auto)
-      if command -v apptainer >/dev/null 2>&1 && [[ -f "${sif_path}" ]]; then
-        printf '%s\n' apptainer
-      elif command -v docker >/dev/null 2>&1; then
+    docker)
+      if container_has_docker_engine; then
         printf '%s\n' docker
-      elif command -v apptainer >/dev/null 2>&1; then
+      else
+        container_die "CONTAINER_RUNTIME=docker requires a usable Docker engine"
+      fi
+      ;;
+    apptainer)
+      if container_has_apptainer; then
         printf '%s\n' apptainer
       else
-        container_die "could not find apptainer or docker"
+        container_die "CONTAINER_RUNTIME=apptainer requires apptainer"
+      fi
+      ;;
+    auto)
+      if container_has_docker_engine; then
+        printf '%s\n' docker
+      elif container_has_apptainer; then
+        printf '%s\n' apptainer
+      else
+        container_die "could not find a usable Docker engine or Apptainer"
       fi
       ;;
     *)
@@ -195,7 +210,10 @@ container_exec() {
     sif_path="$(container_sif_path "${image_name}")"
     container_require_file "${sif_path}"
 
-    local args=(exec --cleanenv --nv)
+    local args=(exec --cleanenv)
+    if [[ "${CONTAINER_DISABLE_GPU}" != "1" && "${CONTAINER_DISABLE_GPU,,}" != "true" ]]; then
+      args+=(--nv)
+    fi
     args+=(--bind "${GREPSEEK_ROOT}:/workspace")
     args+=(--bind "${CACHE_DIR}:/cache")
     args+=(--home "${CACHE_DIR}/home")
@@ -216,7 +234,10 @@ container_exec() {
 
   local image_ref
   image_ref="$(container_image_ref "${image_name}")"
-  local args=(run --rm --gpus all --ipc=host)
+  local args=(run --rm --ipc=host)
+  if [[ "${CONTAINER_DISABLE_GPU}" != "1" && "${CONTAINER_DISABLE_GPU,,}" != "true" ]]; then
+    args+=(--gpus all)
+  fi
   args+=(-v "${GREPSEEK_ROOT}:/workspace")
   args+=(-v "${CACHE_DIR}:/cache")
   args+=(-w /workspace)

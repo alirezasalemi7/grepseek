@@ -174,6 +174,13 @@ def short_status(rec) -> str:
 
 def main():
     args = parse_args()
+    corpus_path = Path(args.corpus_dir) / "wiki_corpus.jsonl"
+    if not corpus_path.is_file():
+        raise SystemExit(
+            f"error: {corpus_path} not found.\n"
+            "       Download it with: python sft/data_generation/download_corpus.py --dest data/wiki_18_corpus\n"
+            "       Or pass --corpus_dir / export CORPUS_DIR to a directory containing wiki_corpus.jsonl."
+        )
 
     print(f"[1/3] loading {args.split} {args.dataset} (offset={args.start}, n={args.n})")
     if args.dataset == "hotpotqa":

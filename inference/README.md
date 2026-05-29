@@ -23,8 +23,9 @@ Run commands from the GrepSeek repository root.
 2. **A served model** — bring up your checkpoint with [`../rl/serve_rl.sh`](../rl/serve_rl.sh)
    (or any OpenAI-compatible vLLM server with Qwen3 tool calling). Note its
    `--base_url` (e.g. `http://HOST:PORT/v1`) and served model name.
-3. **Corpus** — `wiki_corpus.jsonl`; point `--corpus_dir` (or `$GREPSEEK_CORPUS_ROOT`)
-   at the directory that holds it. Download with
+3. **Corpus** — `wiki_corpus.jsonl`; by default the launcher looks in
+   `data/wiki_18_corpus`. Use `--corpus_dir` or `$GREPSEEK_CORPUS_ROOT` when the
+   corpus lives elsewhere. Download with
    [`../sft/data_generation/download_corpus.py`](../sft/data_generation/download_corpus.py).
 
 ## Generation (eval optional)

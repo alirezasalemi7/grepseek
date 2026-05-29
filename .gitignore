@@ -32,3 +32,4 @@ cold_start_sft/output/
 .idea/
 .vscode/
 .ipynb_checkpoints/
+/output*/

@@ -96,7 +96,9 @@ python sft/data_generation/create_data.py \
     --parallel_examples 8
 ```
 
-Or just run the example end-to-end (after exporting `LLM_MODEL` and `CORPUS_DIR`):
+Or just run the example end-to-end after exporting `LLM_MODEL`. It uses
+`data/wiki_18_corpus` by default; set `CORPUS_DIR` only if the corpus lives
+elsewhere:
 
 ```bash
 bash sft/data_generation/scripts/run_example.sh

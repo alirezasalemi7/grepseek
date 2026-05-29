@@ -57,7 +57,7 @@ export TOKENIZERS_PARALLELISM=true
 # --- required paths ---
 : "${GREPSEEK_TRAIN_FILES:?set GREPSEEK_TRAIN_FILES to the RL train JSONL}"
 : "${GREPSEEK_VAL_FILES:?set GREPSEEK_VAL_FILES to the RL val/dev JSONL}"
-: "${GREPSEEK_CORPUS_ROOT:?set GREPSEEK_CORPUS_ROOT to the dir containing wiki_corpus.jsonl}"
+GREPSEEK_CORPUS_ROOT="${GREPSEEK_CORPUS_ROOT:-${REPO_ROOT}/data/wiki_18_corpus}"
 GREPSEEK_TRAIN_FILES="$(root_path "${GREPSEEK_TRAIN_FILES}")"
 GREPSEEK_VAL_FILES="$(root_path "${GREPSEEK_VAL_FILES}")"
 GREPSEEK_CORPUS_ROOT="$(root_path "${GREPSEEK_CORPUS_ROOT}")"

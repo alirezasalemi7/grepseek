@@ -1,3 +1,3 @@
-{"id": "ex1", "question": "Who wrote the novel on which the film Blade Runner is based?"}
-{"id": "ex2", "question": "The Joggers are a four-piece band whose lead singer is the son of an American chemist who received the highest what?"}
-{"id": "ex3", "question": "What major city is the Faith Lutheran Middle School and High School located by?"}
+{"id": "notebook_ex1", "question": "In what country is the second tallest statue in the world?", "golden_answers": ["China"]}
+{"id": "notebook_ex2", "question": "Who is the father of the father of observational astronomy?", "golden_answers": ["Vincenzo Galilei"]}
+{"id": "notebook_ex3", "question": "When was the company that built the first steam locomotive to carry passengers on a public rail line founded?", "golden_answers": ["1823"]}

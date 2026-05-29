@@ -61,9 +61,13 @@ except ImportError:  # pragma: no cover - script-mode fallback
     from scoring import aggregate, score  # type: ignore
 
 
-# Corpus dir defaults to $GREPSEEK_CORPUS_ROOT; cache dir to $HF_HOME (HF default
-# if unset). No machine-specific paths baked in.
-DEFAULT_CORPUS_DIR = os.environ.get("GREPSEEK_CORPUS_ROOT")
+# Corpus dir defaults to $GREPSEEK_CORPUS_ROOT when set, otherwise the repo-local
+# default data/wiki_18_corpus. Cache dir defaults to $HF_HOME (HF default if unset).
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DEFAULT_CORPUS_DIR = (
+    os.environ.get("GREPSEEK_CORPUS_ROOT")
+    or os.path.join(_REPO_ROOT, "data", "wiki_18_corpus")
+)
 DEFAULT_CACHE_DIR = os.environ.get("HF_HOME")
 
 
@@ -112,7 +116,7 @@ def _build_args() -> argparse.Namespace:
     # Agent
     p.add_argument("--corpus_dir", default=DEFAULT_CORPUS_DIR,
                    help="Directory containing wiki_corpus.jsonl (tool commands cwd into it). "
-                        "Defaults to $GREPSEEK_CORPUS_ROOT.")
+                        "Defaults to $GREPSEEK_CORPUS_ROOT, else data/wiki_18_corpus.")
     p.add_argument("--max_assistant_turns", type=int, default=6)
     p.add_argument("--max_tokens_per_turn", type=int, default=2048)
     p.add_argument("--tool_max_tokens", type=int, default=2048,
