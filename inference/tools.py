@@ -15,12 +15,26 @@ use, so the evaluation trace is comparable to training data byte-for-byte.
 """
 from __future__ import annotations
 
+import fcntl
+import io
 import json
+import locale
 import os
 import re
 import shlex
 import subprocess
+import threading
+import time
 from dataclasses import dataclass
+
+# Package-relative import when `inference` is imported as a package (the only
+# way this module is used today: `python -m inference.run`, or `pytest` run
+# from the repo root against `inference/...`); absolute import as a fallback
+# for a hypothetical script-mode invocation, mirroring inference/run.py.
+try:
+    from .pace import decide_for_pace, load_pace_from_env, split_pipeline_stages, verify_natively_streaming
+except ImportError:  # pragma: no cover - script-mode fallback
+    from inference.pace import decide_for_pace, load_pace_from_env, split_pipeline_stages, verify_natively_streaming
 
 # ---------------------------------------------------------------------------
 # Validation
@@ -152,6 +166,104 @@ def _augment_rg_flags(cmd: str) -> str:
     return "|".join(out_stages)
 
 
+def _plan_pace_rewrite(cmd: str, *, cwd: str, env: dict | None = None):
+    """Best-effort: if `GREPSEEK_PACE_DIR` is set and PACE can serve `cmd`
+    (see inference.pace), return `(rewritten_cmd, decision, pace)` where the
+    rewritten first stage reads its candidate lines from stdin instead of
+    scanning the corpus file. Otherwise `(cmd, decision_or_None, None)`;
+    callers run `cmd` exactly as before. Never raises: this is a pure speed
+    optimization and must never be the reason a tool call fails.
+    """
+    try:
+        pace = load_pace_from_env()
+        if pace is None:
+            return cmd, None, None
+        split = split_pipeline_stages(cmd, cwd=cwd, env=env)
+        if split is None:
+            return cmd, None, None
+        stages, stage_texts = split
+        decision = decide_for_pace(stages, cwd=cwd, pace=pace)
+        if not decision.served:
+            return cmd, decision, None
+        # Stage 0 is re-emitted from its (already shell-expanded) argv with
+        # shlex quoting, so bash passes exactly those values through; later
+        # stages keep their original text so their semantics are untouched.
+        new_cmd = " | ".join([shlex.join(list(decision.stage0_argv)), *stage_texts[1:]])
+        return new_cmd, decision, pace
+    except Exception:
+        return cmd, None, None
+
+
+def _native_verify_enabled() -> bool:
+    """GREPSEEK_PACE_NATIVE_VERIFY=0 forces the rg execution path (used by
+    replays to compare the two byte for byte)."""
+    return os.environ.get("GREPSEEK_PACE_NATIVE_VERIFY", "1").strip() not in ("0", "false", "no")
+
+
+def _native_verify_max_bytes() -> int:
+    """Candidate sets larger than this go through streaming rg, which beats
+    the in-process verifier past ~700 MB on wiki18 (default 512 MB)."""
+    raw = os.environ.get("GREPSEEK_PACE_NATIVE_MAX_BYTES", "").strip()
+    return int(raw) if raw else 512 << 20
+
+
+def _decode_like_text_mode(raw: bytes) -> str:
+    """Decode subprocess output exactly as `subprocess.run(text=True)` would
+    (locale preferred encoding, strict errors, universal newlines)."""
+    return io.TextIOWrapper(io.BytesIO(raw), encoding=locale.getpreferredencoding(False)).read()
+
+
+def _run_with_pace_stdin(cmd: str, *, pace, lines, cwd: str, timeout: float, env: dict):
+    """Run `cmd` (a shell pipeline whose first stage reads stdin) while a
+    feeder thread streams PACE's candidate lines into it in file order.
+    Streaming keeps `| head -n N` early termination: once the pipeline
+    closes its stdin the feeder stops on EPIPE, just as rg on the real file
+    would stop on SIGPIPE. Returns `(stdout, stderr, returncode)` or None on
+    timeout.
+    """
+    proc = subprocess.Popen(
+        cmd,
+        shell=True,
+        executable="/bin/bash",
+        cwd=cwd,
+        env=env,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    stdin_pipe = proc.stdin
+    proc.stdin = None  # communicate() must not touch stdin; the feeder owns it
+    try:
+        # Larger pipe buffer: fewer wakeups per MB streamed (Linux F_SETPIPE_SZ).
+        fcntl.fcntl(stdin_pipe.fileno(), 1031, 1 << 20)
+    except (OSError, ValueError, AttributeError):
+        pass
+
+    def _feed() -> None:
+        try:
+            for chunk in pace.iter_materialized_chunks(lines):
+                stdin_pipe.write(chunk)
+        except (BrokenPipeError, OSError, ValueError):
+            pass
+        finally:
+            try:
+                stdin_pipe.close()
+            except (BrokenPipeError, OSError, ValueError):
+                pass
+
+    feeder = threading.Thread(target=_feed, name="pace-stdin-feeder", daemon=True)
+    feeder.start()
+    try:
+        out, err = proc.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        proc.communicate()
+        feeder.join(timeout=5.0)
+        return None
+    feeder.join(timeout=5.0)
+    return _decode_like_text_mode(out), _decode_like_text_mode(err), proc.returncode
+
+
 def _build_tool_env() -> dict:
     """Return an env dict for shell tools.
 
@@ -239,8 +351,13 @@ def run_tool(
     max_tokens: int,
     tokenizer,
     engine=None,
+    pace_stats: dict | None = None,
 ) -> ToolResult:
     """Validate, rewrite corpus.jsonl -> wiki_corpus.jsonl, execute, truncate.
+
+    If `pace_stats` (a dict) is given it is filled with the PACE decision for
+    this call (served or not, why, candidate count, ...) -- telemetry for
+    replay/eval tooling, never part of the tool payload.
 
     If `engine` is provided (a parallel_search.ShardedSearchEngine), it handles
     execution — fanning out parallel-safe pipelines across shards and falling
@@ -262,10 +379,25 @@ def run_tool(
         )
 
     cmd_to_run = cmd.replace(CORPUS_FILENAME_LOGICAL, CORPUS_FILENAME_ACTUAL)
-    cmd_to_run = _augment_rg_flags(cmd_to_run)
     tool_env = _build_tool_env()
     timed_out = False
     stderr = ""
+    decision = None
+    stdin_pace = None
+    if engine is None:
+        # Opt-in PACE prefilter (GREPSEEK_PACE_DIR unset -> cmd_to_run
+        # unchanged, byte-identical to today). Only on the single-file path:
+        # ShardedSearchEngine.execute() has no way to accept stdin-fed input,
+        # only real shard/corpus files.
+        cmd_to_run, decision, stdin_pace = _plan_pace_rewrite(cmd_to_run, cwd=corpus_dir, env=tool_env)
+    if pace_stats is not None:
+        if decision is not None:
+            pace_stats.update(decision.summary())
+        else:
+            pace_stats.update({"served": False, "reason": "engine" if engine is not None else "pace_off"})
+        pace_stats["executed_command"] = cmd_to_run
+    cmd_to_run = _augment_rg_flags(cmd_to_run)
+    _t_exec = time.perf_counter()
     if engine is not None:
         # Engine handles its own subprocess + per-shard timeout + fallback to
         # the single corpus file. Returncode == -1 indicates a timeout.
@@ -273,6 +405,37 @@ def run_tool(
         if exit_code == -1:
             timed_out = True
             stdout = f"[command timed out after {timeout}s]"
+    elif stdin_pace is not None:
+        res = None
+        native_used = False
+        if decision.native is not None and _native_verify_enabled() and decision.total_bytes <= _native_verify_max_bytes():
+            # Above the cap, streaming rg is faster than chunked memcpy +
+            # verification (measured crossover ~700 MB on wiki18).
+            # In-process verification: stream the candidate lines chunk by
+            # chunk in file order and apply the literal filters + head/wc in
+            # C, stopping at `head -n N` like rg would on SIGPIPE. Identical
+            # output by construction for the shapes NativeShape admits; falls
+            # back to the real pipeline if a chunk has bytes rg treats specially.
+            nat = verify_natively_streaming(stdin_pace.iter_materialized_chunks(decision.lines), decision.native)
+            if nat is not None:
+                out_bytes, exit_code = nat
+                stdout = _decode_like_text_mode(out_bytes)
+                stderr = ""
+                res = (stdout, stderr, exit_code)
+                native_used = True
+        if pace_stats is not None:
+            pace_stats["executor"] = "native" if native_used else "rg"
+        if res is None:
+            res = _run_with_pace_stdin(
+                cmd_to_run, pace=stdin_pace, lines=decision.lines, cwd=corpus_dir, timeout=timeout, env=tool_env
+            )
+        if res is None:
+            stdout = f"[command timed out after {timeout}s]"
+            stderr = ""
+            exit_code = -1
+            timed_out = True
+        else:
+            stdout, stderr, exit_code = res
     else:
         try:
             proc = subprocess.run(
@@ -294,9 +457,14 @@ def run_tool(
             exit_code = -1
             timed_out = True
 
+    _t_trunc = time.perf_counter()
     stdout, truncated = truncate_tokens(stdout, max_tokens, tokenizer)
     if truncated:
         stdout += f"\n[... output truncated at {max_tokens} tokens]"
+    if pace_stats is not None:
+        pace_stats["t_exec_s"] = _t_trunc - _t_exec
+        pace_stats["t_truncate_s"] = time.perf_counter() - _t_trunc
+        pace_stats["stdout_chars"] = len(stdout)
 
     info_lines = [ln for ln in stdout.split("\n") if ln.strip()]
     return ToolResult(

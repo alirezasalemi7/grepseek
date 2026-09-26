@@ -28,6 +28,12 @@ execution engine** — runs corpus search up to **7.6× faster** while staying
   221 GB (Qwen3-4B-Emb); ~1 min setup vs. 3.2 / 62.4 A100-hours of offline indexing.
 - **Full, runnable release.** Cold-start data generation, SFT, RL (GRPO), and the
   inference harness + fast execution engine — all reproducible end-to-end.
+- **Optional PACE speedup.** A one-time, offline auxiliary structure (vocabulary
+  suffix array + Elias-Fano posting lists) narrows tool calls to candidate lines
+  before they run, cutting tool latency **77×** (5.39 s → 0.07 s / query) on the
+  14 GB corpus for ~21 min of one-time preprocessing and a 2.8 GB on-disk
+  structure; the sharded execution engine gives **7.6×** with 32 shards and no
+  offline build — see [inference/README.md](inference/README.md) (pick one back-end).
 
 ## Results (token-level F1)
 
@@ -57,7 +63,8 @@ grepseek/
 ├── containers/       # Docker/GHCR and Apptainer usage instructions (no large artifacts tracked)
 ├── sft/              # cold-start SFT data generation + supervised fine-tuning
 ├── rl/               # GRPO training + serving + checkpoint merge  (the `grepseek` package)
-├── inference/        # the agent harness (generation + eval) + the fast parallel-search engine
+├── inference/        # the agent harness (generation + eval) + PACE (offline auxiliary-structure
+│                     #   prefilter) + the fast sharded parallel-search engine
 ├── notebooks/        # interactive Colab/local demo notebooks (try the released model without writing code)
 ├── verl/             # vendored training engine (Apache-2.0; see verl/VENDORED.md)
 ├── TRAINING_ENV.md   # exact, verified environment recipe (CUDA 12.8 / torch 2.10 / vLLM 0.17 / …)
@@ -107,8 +114,19 @@ GREPSEEK_CORPUS_ROOT=data/wiki_18_corpus \
   bash inference/run_inference.sh --base_url http://localhost:10730/v1 \
     --model grepseek --temperature 0.6 --datasets all --out_dir output/eval
 ```
-Add the **fast execution engine** (sharded parallel grep / daemon) for a large
-speedup — see [inference/README.md](inference/README.md).
+```bash
+# 2c. optional: the same generation run, with PACE accelerating tool calls
+#     (one-time setup: bash inference/pace/_native/build.sh && python -m inference.pace.build \
+#      --corpus data/wiki_18_corpus/wiki_corpus.jsonl --out_dir data/wiki_18_corpus/pace)
+GREPSEEK_CORPUS_ROOT=data/wiki_18_corpus \
+  bash inference/run_inference.sh --base_url http://localhost:10730/v1 \
+    --model grepseek --temperature 0.6 --input examples/questions.jsonl --out_dir output/gen \
+    --pace_dir data/wiki_18_corpus/pace
+```
+
+Add **PACE** or the **fast execution engine** (sharded parallel grep / daemon) for
+a large speedup — they are alternative back-ends for the same tool call (pick
+one) — see [inference/README.md](inference/README.md).
 
 ## Notebooks (interactive demo)
 

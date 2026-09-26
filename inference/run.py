@@ -31,6 +31,7 @@ import sys
 import time
 import traceback
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
 from typing import Optional
 
 from openai import OpenAI
@@ -46,6 +47,7 @@ try:
         load_flashrag_dataset,
         load_questions_file,
     )
+    from .pace import PACE_DIR_ENV_VAR, PaceStructure, StalePaceError
     from .scoring import aggregate, score
 except ImportError:  # pragma: no cover - script-mode fallback
     _here = os.path.dirname(os.path.abspath(__file__))
@@ -58,6 +60,7 @@ except ImportError:  # pragma: no cover - script-mode fallback
         load_flashrag_dataset,
         load_questions_file,
     )
+    from pace import PACE_DIR_ENV_VAR, PaceStructure, StalePaceError  # type: ignore
     from scoring import aggregate, score  # type: ignore
 
 
@@ -144,6 +147,15 @@ def _build_args() -> argparse.Namespace:
                    help="Optional jsonl path for per-tool-call engine telemetry. "
                         "When --engine_mode=daemon, ignored client-side (the daemon "
                         "writes its own log via its --engine_log flag).")
+    # PACE (candidate-narrowing accelerator for single-file rg/grep tool calls;
+    # an alternative back-end to the sharded engine, not composable with it).
+    p.add_argument("--pace_dir", default=None,
+                   help="Directory holding a PACE structure built with "
+                        "`python -m inference.pace.build` over this run's "
+                        "wiki_corpus.jsonl. When set, tool calls are narrowed via "
+                        "PACE instead of a full-file rg/grep scan. Mutually "
+                        "exclusive with --engine_mode (other than 'none') and "
+                        "--parallel_shards.")
     # Runner
     p.add_argument("--parallel", type=int, default=8,
                    help="Examples in flight against the server.")
@@ -381,6 +393,50 @@ def main():
         raise SystemExit(f"{args.corpus_dir}/wiki_corpus.jsonl not found "
                          "(download it with sft/data_generation/download_corpus.py)")
 
+    # PACE and the sharded search engine are alternative back-ends for
+    # narrowing tool-call output; pick one. Resolve the deprecated
+    # --parallel_shards alias the same way the engine-selection code below
+    # does, so this check agrees with what will actually run.
+    if args.pace_dir:
+        _effective_engine_mode = args.engine_mode
+        if _effective_engine_mode == "none" and args.parallel_shards and args.parallel_shards > 0:
+            _effective_engine_mode = "inproc"
+        if _effective_engine_mode != "none":
+            raise SystemExit(
+                "--pace_dir cannot be combined with the sharded search engine "
+                f"(--engine_mode={args.engine_mode!r}, --parallel_shards={args.parallel_shards!r} "
+                f"-> effective engine_mode={_effective_engine_mode!r}); pick one back-end."
+            )
+
+    # Open the PACE structure (if requested) before any model-server call or
+    # dataset download, so a bad --pace_dir fails fast with an actionable
+    # message instead of partway through a long run.
+    if args.pace_dir:
+        expected_corpus_path = os.path.join(args.corpus_dir, "wiki_corpus.jsonl")
+        try:
+            _pace_check = PaceStructure.open(args.pace_dir, expected_corpus_path=expected_corpus_path)
+        except StalePaceError as e:
+            raise SystemExit(f"--pace_dir {args.pace_dir!r} is stale: {e}")
+        except FileNotFoundError as e:
+            raise SystemExit(f"--pace_dir {args.pace_dir!r} not found or missing files: {e}")
+        except RuntimeError as e:
+            raise SystemExit(
+                f"--pace_dir {args.pace_dir!r} could not be opened: {e}\n"
+                "If this is about the native extension, build it with "
+                "`bash inference/pace/_native/build.sh` and retry."
+            )
+        except OSError as e:
+            raise SystemExit(f"--pace_dir {args.pace_dir!r} is unreadable: {e}")
+        if not _pace_check.native_available:
+            _pace_check.close()
+            raise SystemExit(
+                f"--pace_dir {args.pace_dir!r} loaded, but its native extension is not "
+                "available (required for PACE's substring lookup). Build it with "
+                "`bash inference/pace/_native/build.sh` and retry."
+            )
+        _pace_check.close()
+        os.environ[PACE_DIR_ENV_VAR] = str(Path(args.pace_dir).resolve())
+
     # Pick the work: generation (--input) XOR benchmark (--datasets).
     if args.input and args.datasets:
         raise SystemExit("pass either --input (generation) or --datasets (benchmark), not both")
@@ -394,12 +450,18 @@ def main():
     tok_id = args.tokenizer or args.model
     print(f"tokenizer:   {tok_id}", flush=True)
     print(f"corpus_dir:  {args.corpus_dir}", flush=True)
+    if args.pace_dir:
+        print(f"PACE:        on ({os.environ.get(PACE_DIR_ENV_VAR)})", flush=True)
     print(f"out_dir:     {args.out_dir}", flush=True)
     print(f"mode:        {'generation' if args.input else 'benchmark eval'}"
           f"{'' if do_eval else ' (no scoring)'}", flush=True)
 
     client = OpenAI(api_key=args.api_key, base_url=base_url)
-    tokenizer = AutoTokenizer.from_pretrained(tok_id, cache_dir=args.cache_dir)
+    # --cache_dir is an HF_HOME-style root; Hub files (model + tokenizer) live
+    # under <root>/hub, where rl/serve_rl.sh caches the served checkpoint, so
+    # the tokenizer resolves from the same download (and works offline).
+    tok_cache_dir = os.path.join(args.cache_dir, "hub") if args.cache_dir else None
+    tokenizer = AutoTokenizer.from_pretrained(tok_id, cache_dir=tok_cache_dir)
 
     # Search-engine backend selection. Resolve the deprecated
     # --parallel_shards alias first, then pick a backend.

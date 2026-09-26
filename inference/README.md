@@ -67,6 +67,49 @@ writes `overall.json` with both **macro** (datasets weighted equally) and
 **micro** (examples pooled across datasets) EM/F1. `--datasets all` runs the full
 suite. EM and F1 are reported separately (no combined metric).
 
+## PACE — Pruned Adaptive Command Execution (optional speedup)
+
+PACE builds a one-time, offline auxiliary structure over the corpus (a
+vocabulary suffix array + Elias-Fano-encoded posting lists + a separator-rank
+bitvector; no embeddings, no retraining) that lets
+the tool executor narrow a literal `rg`/`grep` pipeline down to its candidate
+lines before the real command runs. It never produces output itself: a
+served call still runs the real pipeline (or an in-process byte-for-byte
+verifier for the common shapes) over exactly those candidate lines, so
+output is guaranteed byte-identical to the un-accelerated path; anything
+PACE can't safely narrow runs the original command unchanged.
+
+On the 14 GB / 21M-document corpus, PACE cuts tool latency from 5.39 s to
+0.07 s per query (**77×**) after a one-time build (~21 min wall clock,
+~28 GB peak RAM measured on the full corpus; ~2.8 GB on-disk structure). By
+comparison, the fast execution engine below gives 7.6× with 32 shards and no
+offline build step. **PACE and the sharded execution engine are alternative
+back-ends for the same tool call — pick one, not both** (`run.py` refuses
+`--pace_dir` together with `--engine_mode` other than `none` or
+`--parallel_shards>0`).
+
+```bash
+# 1. Build the native library once per environment (compiled C — not
+#    portable across incompatible glibc/CPU architectures):
+bash inference/pace/_native/build.sh
+
+# 2. Build the auxiliary structure once per corpus (one-time, offline,
+#    single-machine — run on a high-memory node, not the login node):
+python -m inference.pace.build \
+    --corpus /path/to/wiki_18_corpus/wiki_corpus.jsonl \
+    --out_dir /path/to/wiki_18_corpus/pace
+
+# 3. Run with --pace_dir instead of --engine_mode/--shard_dir:
+bash inference/run_inference.sh ... --pace_dir /path/to/wiki_18_corpus/pace
+```
+
+`--pace_dir` sets `GREPSEEK_PACE_DIR` for the worker process before it serves
+any request. `run.py` fails fast with an actionable message if the directory
+can't be opened, if the native library from step 1 hasn't been built (it
+tells you to run `bash inference/pace/_native/build.sh`), or if the
+structure's recorded corpus path doesn't resolve to the corpus file under
+`--corpus_dir`.
+
 ## Fast execution engine (optional speedup)
 
 Each tool call greps a 14 GB corpus; over thousands of calls this dominates
@@ -99,9 +142,13 @@ inference/
 ├── run.py                  # the harness: generation + (optional) eval  (python -m inference.run)
 ├── run_inference.sh        # thin launcher (sets PYTHONPATH + caches)
 ├── agent.py                # multi-turn search agent (one trajectory per question)
-├── tools.py                # shell/grep tool executor + validator
+├── tools.py                # shell/grep tool executor + validator (+ PACE hook)
 ├── load_dataset.py         # FlashRAG benchmark loaders + generic questions-file loader
 ├── scoring.py              # normalize / EM / token-F1 / aggregate
+├── pace/                   # PACE: offline auxiliary-structure prefilter (alternative to parallel_search/)
+│   ├── core.py             # structure format, planner, native-verifier hook
+│   ├── build.py            # builder CLI  (python -m inference.pace.build)
+│   └── _native/            # C sources + build.sh + vendored libsais (build once: bash inference/pace/_native/build.sh)
 └── parallel_search/        # the fast execution engine
     ├── sharder.py          # build N shards from the corpus
     ├── daemon.py, client.py # shared search daemon + client

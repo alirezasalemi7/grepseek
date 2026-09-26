@@ -7,6 +7,10 @@ __pycache__/
 build/
 dist/
 
+# Compiled native extension (built locally via inference/pace/_native/build.sh;
+# architecture/glibc-specific, never committed).
+inference/pace/_native/*.so
+
 # Training / experiment run artifacts (Hydra, W&B, checkpoints, logs).
 # Anchored to repo root OR matched anywhere as appropriate — but NOT so broad
 # they swallow source dirs (e.g. the `rl/grepseek/data/` package).
