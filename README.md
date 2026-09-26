@@ -12,7 +12,7 @@ disambiguation and multi-hop reasoning), needs **no embedding index** (just the
 execution engine** — runs corpus search up to **7.6× faster** while staying
 **byte-exact** with plain `grep`.
 
-<p align="center"><img src="assets/method_figure.png" width="780" alt="Retrieval-augmented agentic search vs. Direct Corpus Interaction"></p>
+**Overview figure:** [Agentic RAG vs. Direct Corpus Interaction, with the SPCS and PACE execution engine (PDF)](assets/main_figure.pdf)
 
 ## Highlights
 
