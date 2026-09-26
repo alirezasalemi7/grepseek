@@ -1,0 +1,8 @@
+openai>=1.0
+datasets>=2.14
+huggingface_hub>=0.20
+tokenizers>=0.15
+json5>=0.9
+tqdm>=4.65
+pandas>=2.0
+pyarrow>=12.0

@@ -1,0 +1,353 @@
+# GRPO training config for GrepSeek (verl is used as the engine).
+#
+# Paths are driven by environment variables so the config is portable:
+#   GREPSEEK_ROOT        absolute path to the repo root (the dir holding rl/ + verl/)
+#   GREPSEEK_MODEL_PATH  starting policy — the cold-start SFT checkpoint (HF format).
+#                        Defaults to the base model if unset.
+#   GREPSEEK_TRAIN_FILES / GREPSEEK_VAL_FILES   QA JSONL files (NQ/HotpotQA/...).
+#   GREPSEEK_OUTPUT_DIR  checkpoint + rollout output directory.
+#   VERL_TOOL_CORPUS_ROOT  dir containing wiki_corpus.jsonl (read by the search tool).
+# `run_rl.sh` sets all of these for you and overrides the GPU count + W&B on the CLI.
+#
+# The hyperparameters below are the paper's "ours" GRPO run (qwen3.5-9b, NQ+HotpotQA,
+# F1 reward, length penalty OFF). Launch via ../../../run_rl.sh, or by hand:
+#   python -m verl.trainer.main_ppo --config-path <this_dir> --config-name grpo_trainer \
+#       hydra.searchpath="[file://$GREPSEEK_ROOT/verl/verl/trainer/config]" ...
+
+hydra:
+  searchpath:
+    # verl's trainer config dir (provides the `defaults` groups below). run_rl.sh
+    # also passes this on the CLI; if you launch by hand, GREPSEEK_ROOT must be set.
+    - file://${oc.env:GREPSEEK_ROOT}/verl/verl/trainer/config
+
+defaults:
+  - actor@actor_rollout_ref.actor: dp_actor
+  - data@data: legacy_data
+  - ref@actor_rollout_ref.ref: dp_ref
+  - rollout@actor_rollout_ref.rollout: rollout
+  - model@actor_rollout_ref.model: hf_model
+  - reward@reward: reward
+  - algorithm@algorithm.rollout_correction: rollout_correction
+  - _self_
+
+# ─────────────────────────────────────────────
+# Trainer
+# ─────────────────────────────────────────────
+trainer:
+  project_name: grepseek_verl_grpo
+  timestamp: ""
+  decay_type: cosine
+  experiment_name: grepseek_grpo_${actor_rollout_ref.rollout.n}rollouts_bs${data.train_batch_size}_${trainer.decay_type}${trainer.timestamp}
+  total_epochs: 1
+  total_training_steps: 200
+  resume_mode: auto
+  resume_from_path: null
+  del_local_ckpt_after_load: false
+  val_before_train: false
+  val_only: false
+  test_freq: 500
+  save_freq: 40
+  log_val_generations: 8
+  rollout_data_dir: ${trainer.default_local_dir}/train_rollouts
+  validation_data_dir: ${trainer.default_local_dir}/val_rollouts
+  balance_batch: true
+  default_local_dir: ${oc.env:GREPSEEK_OUTPUT_DIR,${oc.env:GREPSEEK_ROOT}/checkpoints/rl/${trainer.experiment_name}}
+  default_hdfs_dir: null
+  critic_warmup: 0
+  esi_redundant_time: 0
+  device: cuda
+  n_gpus_per_node: 4   # overridden by run_rl.sh (GREPSEEK_NPROC); paper used 4×A100-80GB
+  nnodes: 1
+  seed: 42
+  logger:
+    - console   # run_rl.sh switches this to [console, wandb] when W&B creds are set
+
+wandb:
+  enable: false           # enabled by run_rl.sh when WANDB_ENTITY is set
+  project: ${trainer.project_name}
+  entity: ${oc.env:WANDB_ENTITY,null}
+  run_name: null
+
+# ─────────────────────────────────────────────
+# Data
+# ─────────────────────────────────────────────
+data:
+  # Custom dataset class — loads QA JSONL directly (NQ/HotpotQA/MuSiQue/...).
+  custom_cls:
+    path: ${oc.env:GREPSEEK_ROOT}/rl/grepseek/trainer/verl_integration/dataset.py
+    name: GrepSeekDataset
+
+  train_files: ${oc.env:GREPSEEK_TRAIN_FILES}
+  val_files: ${oc.env:GREPSEEK_VAL_FILES}
+
+  # Inference prompt assets — must match the SFT/inference distribution. The tool
+  # spec is embedded in system_prompt.txt prose, so the other two are empty (kept
+  # so render_system_prompt's template slots resolve to nothing).
+  system_prompt_path: ${oc.env:GREPSEEK_ROOT}/rl/prompts/system_prompt.txt
+  retrieval_instruction_path: ${oc.env:GREPSEEK_ROOT}/rl/prompts/output_format_instruction.txt
+  tool_spec_template_path: ${oc.env:GREPSEEK_ROOT}/rl/prompts/tool_spec_template.txt
+
+  answerable_only: true
+
+  debug_mode_train: false
+  debug_num_samples_train: 32
+  debug_mode_val: false
+  debug_num_samples_val: 32
+
+  # 256 questions × 5 rollouts = 1,280 trajectories/step; splits into
+  # 256/32 = 8 PPO gradient updates of (32 × 5) = 160 trajectories each.
+  train_batch_size: 256
+  max_prompt_length: 1024     # system prompt + question (max observed ≈ 491 tokens)
+  max_response_length: 15360  # 1024 + 15360 = 16384 total context
+  return_raw_chat: true
+  prompt_key: prompt
+  return_raw_input_ids: false
+  return_full_prompt: false
+  dataloader_num_workers: 1
+  train_drop_last: true
+
+# ─────────────────────────────────────────────
+# Actor / Rollout / Reference
+# ─────────────────────────────────────────────
+actor_rollout_ref:
+  hybrid_engine: true
+
+  model:
+    # Starting policy: the cold-start SFT checkpoint (HF format). Falls back to the
+    # base model if GREPSEEK_MODEL_PATH is unset.
+    path: ${oc.env:GREPSEEK_MODEL_PATH,Qwen/Qwen3.5-9B}
+    trust_remote_code: true
+    enable_gradient_checkpointing: true
+
+  rollout:
+    name: vllm
+    mode: async
+    load_format: safetensors
+    # vLLM 0.17 + Qwen3.5 GatedDeltaNet crashes in CUDA-graph compiled forward.
+    enforce_eager: true
+    gpu_memory_utilization: 0.60   # FSDP weights live mostly on CPU (param_offload),
+                                   # so vLLM gets more KV-cache headroom for rollouts
+    engine_kwargs:
+      vllm:
+        # Force text-only Qwen3_5ForCausalLM in vLLM; avoids vision/GatedDeltaNet
+        # weight-key mismatches during inference.
+        language_model_only: true
+
+    # GRPO: 5 independent rollouts per question for advantage estimation
+    n: 5
+    temperature: 1.0
+    top_p: 1.0
+    top_k: -1
+
+    max_model_len: 16384
+    prompt_length: 1024
+    response_length: 15360
+
+    max_num_seqs: 32
+    max_num_batched_tokens: 24576
+    log_prob_micro_batch_size_per_gpu: 1
+    log_prob_use_dynamic_bsz: false
+    log_prob_max_token_len_per_gpu: 16384
+
+    multi_turn:
+      enable: true
+      # Up to 5 tool calls + 1 final-answer turn — matches the SFT data-gen cap
+      # (--max_tool_calls 5) so an SFT-trained model isn't cut off mid-trajectory.
+      max_user_turns: 5
+      max_assistant_turns: 6
+      max_parallel_calls: 1
+      # Hermes: Qwen3 native <tool_call>...</tool_call> XML (matches inference).
+      format: hermes
+      tool_config_path: ${oc.env:GREPSEEK_ROOT}/rl/grepseek/trainer/config/tools/search_tools.yaml
+      interaction_config_path: null
+      # Char-based safety net only — SearchCorpusTool already truncates stdout to
+      # 2048 tokens (max_output_tokens) with the model's tokenizer, matching SFT.
+      # Keep this high so verl doesn't double-truncate at a tighter char cap.
+      max_tool_response_length: 100000
+      tool_response_truncate_side: right
+
+    agent:
+      agent_loop_manager_class: null
+      num_workers: 1
+      default_agent_loop: grepseek_agent
+      # YAML registration loaded inside AgentLoopWorker so the class is found in
+      # Ray workers without a prior @register import.
+      agent_loop_config_path: ${oc.env:GREPSEEK_ROOT}/rl/grepseek/trainer/config/agent_loops.yaml
+
+  actor:
+    strategy: fsdp
+    freeze_vision_tower: true
+    checkpoint:
+      save_contents: ['model', 'optimizer', 'extra']
+      load_contents: ['model', 'optimizer', 'extra']
+    ppo_mini_batch_size: 32
+    ppo_micro_batch_size_per_gpu: 1
+    ppo_max_token_len_per_gpu: 16384
+    use_dynamic_bsz: true
+    use_kl_loss: false
+    kl_loss_coef: 0.0
+    fsdp_config:
+      full_determinism: true
+      seed: 42
+      wrap_policy:
+        transformer_layer_cls_to_wrap:
+          - Qwen3_5DecoderLayer
+      param_offload: true
+      grad_offload: true
+      optimizer_offload: true
+      fsdp_size: 4              # = number of GPUs; run_rl.sh overrides with GREPSEEK_NPROC
+      dtype: bfloat16
+      model_dtype: bfloat16
+      # Ulysses sequence parallel splits each long rollout sequence across N GPUs,
+      # so the 16K total sequence fits. Must divide n_gpus_per_node.
+      ulysses_sequence_parallel_size: 2
+    optim:
+      optimizer: AdamW
+      optimizer_impl: torch.optim
+      lr: 5.0e-6
+      weight_decay: 0.0
+      betas:
+        - 0.9
+        - 0.999
+      clip_grad: 1.0
+      lr_scheduler_type: constant
+      lr_warmup_steps_ratio: 0.05
+      lr_warmup_steps: -1
+
+  ref:
+    strategy: fsdp
+    log_prob_micro_batch_size_per_gpu: 2
+    log_prob_max_token_len_per_gpu: 16384
+    fsdp_config:
+      full_determinism: true
+      seed: 42
+      wrap_policy:
+        min_num_params: 0
+      param_offload: true
+      grad_offload: false
+      optimizer_offload: false
+      dtype: bfloat16
+      model_dtype: bfloat16
+      # Ref must use the SAME sp size as the actor (log-probs on identical shards).
+      ulysses_sequence_parallel_size: 2
+
+# ─────────────────────────────────────────────
+# Critic — disabled (GRPO has no critic)
+# ─────────────────────────────────────────────
+critic:
+  enable: false
+  model:
+    enable: false
+  strategy: fsdp
+
+# ─────────────────────────────────────────────
+# Reward model — disabled; reward computed via the custom function below
+# ─────────────────────────────────────────────
+reward_model:
+  num_workers: null
+  enable: false
+  enable_resource_pool: false
+  use_reward_loop: true
+  n_gpus_per_node: 0
+  nnodes: 0
+  strategy: none
+  reward_manager: naive
+  reward_loop_source: register
+  reward_loop_module_path: null
+  reward_loop_class_name: null
+  launch_reward_fn_async: false
+  model:
+    path: null
+    input_tokenizer: null
+    external_lib: null
+    trust_remote_code: false
+    override_config: {}
+  rollout:
+    name: null
+
+reward_manager:
+  _target_: verl.trainer.config.config.RewardManagerConfig
+  source: register
+  name: ${oc.select:reward_model.reward_manager,naive}
+  module:
+    _target_: verl.trainer.config.config.ModuleConfig
+    path: null
+    name: custom_reward_manager
+
+# ─────────────────────────────────────────────
+# Custom reward: format-gated (EM | F1) − length penalty p(L)
+# ─────────────────────────────────────────────
+custom_reward_function:
+  path: ${oc.env:GREPSEEK_ROOT}/rl/grepseek/trainer/verl_integration/reward_function.py
+  name: grepseek_reward
+  reward_kwargs:
+    # Paper "ours": F1 reward, length penalty OFF (enable_length_decay=false).
+    # The decay_type/a/penalty_mode below are inert while the decay is off; they
+    # are kept so you can turn the length penalty on without re-deriving them.
+    enable_length_decay: false
+    decay_type: cosine
+    a: 0.05                          # max penalty subtracted at L=L_max (when on)
+    L_max: ${data.max_response_length}
+    failed_rollout_reward: 0.0       # reward for empty / no-final-answer rollouts
+    reward_metric: f1                # em | f1  (both are always logged)
+    enable_penalty_warmup: false
+    penalty_warmup_steps: 100
+    current_step_file: ${trainer.default_local_dir}/current_step.txt
+    penalty_mode: additive_clamped   # additive | additive_clamped | multiplicative
+
+# ─────────────────────────────────────────────
+# Algorithm: GRPO
+# ─────────────────────────────────────────────
+algorithm:
+  gamma: 1.0
+  lam: 1.0
+  adv_estimator: grpo
+  norm_adv_by_std_in_grpo: true
+  ppo_epochs: 1
+  clip_ratio: 0.2
+  value_clip: false
+  use_kl_in_reward: false
+  kl_penalty: kl
+  kl_ctrl:
+    type: fixed
+    kl_coef: 0.0
+
+# ─────────────────────────────────────────────
+# Sandbox fusion — disabled
+# ─────────────────────────────────────────────
+sandbox_fusion:
+  url: null
+  max_concurrent: null
+  memory_limit_mb: null
+
+# ─────────────────────────────────────────────
+# Transfer queue — disabled
+# ─────────────────────────────────────────────
+transfer_queue:
+  enable: false
+  backend:
+    storage_backend: SimpleStorage
+    SimpleStorage:
+      total_storage_size: 100000
+      num_data_storage_units: 8
+
+# ─────────────────────────────────────────────
+# Ray
+# ─────────────────────────────────────────────
+ray_kwargs:
+  ray_init:
+    ignore_reinit_error: true
+    num_cpus: 16
+    num_gpus: 4    # overridden by run_rl.sh; must match trainer.n_gpus_per_node
+    include_dashboard: false
+  ray_remote:
+    num_cpus: 1
+  timeline_json_file: null
+
+global_profiler:
+  _target_: verl.utils.profiler.ProfilerConfig
+  tool: null
+  steps: null
+  profile_continuous_steps: false
+  save_path: null
+  global_tool_config: {}
